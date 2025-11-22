@@ -29,8 +29,8 @@ def generate_content_async(self, uploaded_file_id: int, platforms: List[str], tr
         
         self.update_state(state='PROCESSING', meta={'status': 'Generating content with AI Agents...'})
         
-        # Call the Multi-Agent AI Wrapper
-        content_json = ai_wrapper.generate_content_with_openai(
+        # FIX: Call the generic wrapper function, not the OpenAI specific one directly
+        content_json = ai_wrapper.generate_content(
             extracted_text=uploaded_file.extracted_text,
             trend_snippets=trend_snippets,
             platforms=platforms
@@ -47,7 +47,7 @@ def generate_content_async(self, uploaded_file_id: int, platforms: List[str], tr
         generated_content = GeneratedContent.objects.create(
             user=user,
             uploaded_file=uploaded_file,
-            content_json=content_json, # <--- Stores the full AI result
+            content_json=content_json,
             model_used="gpt-4o",
             trends_used=[{
                 'title': snippet['title'],

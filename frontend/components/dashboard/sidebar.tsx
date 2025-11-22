@@ -8,10 +8,11 @@ import {
   Sparkles, 
   BarChart3, 
   LogOut,
-  Zap
+  Zap,
+  User
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { signOut } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react' // Added useSession
 
 const navigation = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
@@ -21,12 +22,14 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
 
   return (
     <motion.aside 
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      className="fixed left-4 top-24 bottom-4 w-64 flex flex-col glass-panel rounded-2xl z-40 overflow-hidden border border-white/10 bg-[#0F172A]/60 backdrop-blur-xl"
+      // CHANGED: top-24 -> top-4
+      className="fixed left-4 top-4 bottom-4 w-64 flex flex-col glass-panel rounded-2xl z-40 overflow-hidden border border-white/10 bg-[#0F172A]/60 backdrop-blur-xl"
     >
       {/* Branding & Status */}
       <div className="p-6 flex items-center gap-3 border-b border-white/5">
@@ -65,14 +68,24 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User Actions */}
-      <div className="p-3 mt-auto border-t border-white/5">
+      {/* User Profile & Actions (New Section) */}
+      <div className="p-3 mt-auto border-t border-white/5 bg-black/20">
+        <div className="flex items-center gap-3 px-3 py-3 mb-2 rounded-xl bg-white/5 border border-white/5">
+          <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold text-white">
+            {session?.user?.name?.[0] || 'U'}
+          </div>
+          <div className="flex-1 min-w-0">
+             <p className="text-sm font-medium text-white truncate">{session?.user?.name || 'User'}</p>
+             <p className="text-xs text-gray-400 truncate">{session?.user?.email || 'user@example.com'}</p>
+          </div>
+        </div>
+
         <button 
           onClick={() => signOut({ callbackUrl: '/' })}
-          className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors mt-1 group"
+          className="w-full flex items-center gap-3 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors group"
         >
-          <LogOut className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          <span className="font-medium text-sm">Sign Out</span>
+          <LogOut className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          <span className="font-medium text-xs">Sign Out</span>
         </button>
       </div>
     </motion.aside>

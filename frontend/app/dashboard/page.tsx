@@ -55,28 +55,24 @@ export default function DashboardPage() {
 
   // Handle Click on Activity Item
   const handleActivityClick = async (item: any) => {
-    // Check if it's a generation event (ID starts with "gen-")
+    console.log("Clicked item:", item) // Debug Log
     if (item.id && item.id.toString().startsWith('gen-')) {
       const contentId = item.id.split('-')[1]
       setLoadingPreview(true)
       try {
-        // Fetch the full content from DB
         const data = await getGeneratedContent(parseInt(contentId))
-        
         if (data && data.content_json) {
           setPreviewContent(data.content_json)
-          setIsPreviewOpen(true)
+          setIsPreviewOpen(true) // Opens the new Safe Modal
         } else {
           toast.error('Content details not found')
         }
       } catch (error) {
-        console.error('Failed to fetch details', error)
-        toast.error('Could not load content details')
+        console.error('Fetch error:', error)
+        toast.error('Could not load content')
       } finally {
         setLoadingPreview(false)
       }
-    } else {
-      toast.info('This item does not have a preview.')
     }
   }
 

@@ -86,7 +86,6 @@ export default function ContentLab() {
     if (!script) return '';
     if (typeof script === 'string') return script;
     
-    // If it's an object (from high-quality agent), format it nicely
     let formatted = '';
     if (script.intro) formatted += `[INTRO]\n${script.intro}\n\n`;
     if (script.story_problem) formatted += `[STORY & PROBLEM]\n${script.story_problem}\n\n`;
@@ -95,7 +94,6 @@ export default function ContentLab() {
     if (script.cta) formatted += `[CTA]\n${script.cta}\n\n`;
     if (script.outro) formatted += `[OUTRO]\n${script.outro}`;
     
-    // Fallback for other keys if structure varies
     if (!formatted) {
         return Object.entries(script)
             .map(([key, val]) => `[${key.toUpperCase().replace(/_/g, ' ')}]\n${val}`)
@@ -114,7 +112,6 @@ export default function ContentLab() {
       setGenerating(true)
       setStep('generating')
 
-      // 1. Upload content
       let fileId: number
       if (uploadedFile) {
         const uploadResult = await uploadContent(uploadedFile, (progress) => {
@@ -130,14 +127,12 @@ export default function ContentLab() {
 
       setUploadId(fileId)
 
-      // 2. Start Generation Task
       const result = await generateContent({
         uploaded_file_id: fileId,
         platforms: ['linkedin', 'twitter', 'youtube', 'blog'],
         trend_count: 5
       })
 
-      // 3. Robust Polling Logic
       if (result.task_id) {
         let pollCount = 0
         let errorCount = 0
@@ -146,7 +141,7 @@ export default function ContentLab() {
         const pollInterval = setInterval(async () => {
           pollCount++
           try {
-            const status = await checkTaskStatus(result.task_id!) // Added non-null assertion
+            const status = await checkTaskStatus(result.task_id!)
             
             if (status.status === 'completed') {
               clearInterval(pollInterval)
@@ -154,7 +149,6 @@ export default function ContentLab() {
               
               const transformedContent: GeneratedContent[] = []
               
-              // LinkedIn Mapping
               if (content.linkedin) {
                 const text = content.linkedin.post_text || content.linkedin.text || content.linkedin.content || ''
                 transformedContent.push({
@@ -165,7 +159,6 @@ export default function ContentLab() {
                 })
               }
 
-              // Twitter Mapping
               if (content.twitter_thread || content.x_thread) {
                 const thread = content.twitter_thread || content.x_thread
                 transformedContent.push({
@@ -175,7 +168,6 @@ export default function ContentLab() {
                 })
               }
 
-              // Blog Mapping
               if (content.long_blog) {
                 transformedContent.push({
                   platform: 'blog',
@@ -184,11 +176,8 @@ export default function ContentLab() {
                 })
               }
 
-              // YouTube Mapping
               if (content.youtube) {
-                 // FIX: Ensure script is a string
                  const scriptText = formatScript(content.youtube.script);
-                 
                  transformedContent.push({
                   platform: 'youtube',
                   content: scriptText, 
@@ -286,12 +275,6 @@ export default function ContentLab() {
           </div>
         )}
       </div>
-      <div className="bg-slate-50 dark:bg-slate-950/50 p-3 border-t border-slate-100 dark:border-slate-800 flex justify-around text-slate-500 text-sm font-medium">
-        <span className="cursor-pointer hover:bg-slate-200/50 p-2 rounded">Like</span>
-        <span className="cursor-pointer hover:bg-slate-200/50 p-2 rounded">Comment</span>
-        <span className="cursor-pointer hover:bg-slate-200/50 p-2 rounded">Repost</span>
-        <span className="cursor-pointer hover:bg-slate-200/50 p-2 rounded">Send</span>
-      </div>
     </div>
   )
 
@@ -322,7 +305,7 @@ export default function ContentLab() {
   )
 
   const YouTubePreview = ({ item }: { item: GeneratedContent }) => (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-1 space-y-6">
         <div className="bg-white/5 rounded-xl p-4 border border-white/10">
           <div className="aspect-video bg-slate-800 rounded-lg mb-3 flex items-center justify-center text-slate-600">
@@ -349,7 +332,7 @@ export default function ContentLab() {
             <Copy className="w-4 h-4 mr-2" /> Copy Script
           </Button>
         </div>
-        <div className="flex-1 p-6 overflow-y-auto bg-slate-950 font-mono text-sm leading-relaxed text-slate-300">
+        <div className="flex-1 p-6 bg-slate-950 font-mono text-sm leading-relaxed text-slate-300">
           {(item.script || '').split(/(\[.*?\])/).map((part, i) => 
             part.startsWith('[') && part.endsWith(']') ? 
               <span key={i} className="text-yellow-500 font-bold block my-4">{part}</span> : 
@@ -416,7 +399,7 @@ export default function ContentLab() {
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col">
+    <div className="flex flex-col min-h-full">
       <AnimatePresence mode="wait">
         {step === 'upload' && (
           <motion.div
@@ -424,21 +407,21 @@ export default function ContentLab() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="flex-1 flex flex-col gap-6"
+            className="flex flex-col gap-6"
           >
             <div>
               <h1 className="text-3xl font-bold mb-2">Content Lab</h1>
               <p className="text-gray-400">Upload your content and let AI generate platform-ready posts</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* File Upload Section */}
               <div className="glass-panel p-6 rounded-2xl flex flex-col">
                 <h3 className="text-lg font-semibold mb-4">Upload Content</h3>
                 <div
                   {...getRootProps()}
                   className={cn(
-                    "flex-1 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all",
+                    "h-64 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all",
                     isDragActive ? "border-indigo-500 bg-indigo-500/10" : "border-gray-700 hover:border-gray-600"
                   )}
                 >
@@ -467,7 +450,7 @@ export default function ContentLab() {
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
                   placeholder="Paste your content here..."
-                  className="flex-1 bg-black/20 border-gray-700 resize-none"
+                  className="h-64 bg-black/20 border-gray-700 resize-none"
                 />
               </div>
             </div>
@@ -489,7 +472,7 @@ export default function ContentLab() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex-1 flex items-center justify-center"
+            className="h-[50vh] flex items-center justify-center"
           >
             <div className="text-center">
               <Loader2 className="w-16 h-16 text-indigo-500 animate-spin mx-auto mb-4" />
@@ -505,7 +488,7 @@ export default function ContentLab() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="flex-1 flex flex-col gap-6 h-full"
+            className="flex flex-col gap-6"
           >
             <div className="flex items-center justify-between shrink-0">
               <div>
@@ -515,7 +498,7 @@ export default function ContentLab() {
               <Button onClick={resetForm} variant="outline">Create New</Button>
             </div>
 
-            <Tabs value={selectedPlatform} onValueChange={setSelectedPlatform} className="flex-1 flex flex-col min-h-0">
+            <Tabs value={selectedPlatform} onValueChange={setSelectedPlatform} className="flex-1 flex flex-col">
               <TabsList className="grid grid-cols-4 bg-black/20 w-full max-w-2xl mx-auto shrink-0">
                 <TabsTrigger value="linkedin"><Linkedin className="w-4 h-4 mr-2" /> LinkedIn</TabsTrigger>
                 <TabsTrigger value="twitter"><Twitter className="w-4 h-4 mr-2" /> Twitter</TabsTrigger>
@@ -523,9 +506,9 @@ export default function ContentLab() {
                 <TabsTrigger value="blog"><FileCode className="w-4 h-4 mr-2" /> Blog</TabsTrigger>
               </TabsList>
 
-              <div className="flex-1 mt-6 overflow-hidden relative">
+              <div className="mt-6">
                 {/* LinkedIn */}
-                <TabsContent value="linkedin" className="h-full overflow-y-auto pr-2">
+                <TabsContent value="linkedin">
                   {generatedContent.find(c => c.platform === 'linkedin') ? (
                     <div className="space-y-4">
                       <LinkedInPreview item={generatedContent.find(c => c.platform === 'linkedin')!} />
@@ -542,7 +525,7 @@ export default function ContentLab() {
                 </TabsContent>
 
                 {/* Twitter */}
-                <TabsContent value="twitter" className="h-full overflow-y-auto pr-2">
+                <TabsContent value="twitter">
                   {generatedContent.find(c => c.platform === 'twitter') ? (
                     <div className="space-y-6 max-w-xl mx-auto pb-10">
                       <TwitterPreview item={generatedContent.find(c => c.platform === 'twitter')!} />
@@ -559,14 +542,14 @@ export default function ContentLab() {
                 </TabsContent>
 
                 {/* YouTube */}
-                <TabsContent value="youtube" className="h-full overflow-hidden">
+                <TabsContent value="youtube">
                   {generatedContent.find(c => c.platform === 'youtube') ? (
                     <YouTubePreview item={generatedContent.find(c => c.platform === 'youtube')!} />
                   ) : <EmptyState />}
                 </TabsContent>
 
                 {/* Blog */}
-                <TabsContent value="blog" className="h-full overflow-y-auto pr-2">
+                <TabsContent value="blog">
                   {generatedContent.find(c => c.platform === 'blog') ? (
                     <BlogPreview item={generatedContent.find(c => c.platform === 'blog')!} />
                   ) : <EmptyState />}
@@ -582,7 +565,7 @@ export default function ContentLab() {
 
 function EmptyState() {
   return (
-    <div className="h-full flex flex-col items-center justify-center text-gray-500 p-8 border border-dashed border-white/10 rounded-xl">
+    <div className="flex flex-col items-center justify-center text-gray-500 p-12 border border-dashed border-white/10 rounded-xl">
       <AlertCircle className="w-12 h-12 mb-4 opacity-20" />
       <p>No content generated for this platform</p>
     </div>
