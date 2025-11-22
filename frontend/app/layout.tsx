@@ -11,7 +11,7 @@ const plusJakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'CONTEXIA - Neural Content Engine',
+  title: 'CONTEXIA - The Content Engine',
   description: 'Unified context-to-content automation platform.',
 }
 

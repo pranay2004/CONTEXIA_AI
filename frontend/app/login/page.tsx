@@ -330,18 +330,6 @@ function LoginPageInner() {
             </p>
           </motion.div>
         </motion.div>
-
-        {/* Demo Credentials */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1 }}
-          className="mt-6 p-4 bg-blue-50/50 dark:bg-blue-900/20 backdrop-blur-sm rounded-xl border border-blue-200/50 dark:border-blue-800/50"
-        >
-          <p className="text-sm text-slate-700 dark:text-slate-300 text-center">
-            <span className="font-semibold">Demo:</span> Use your Django superuser credentials to sign in
-          </p>
-        </motion.div>
       </motion.div>
     </div>
   )

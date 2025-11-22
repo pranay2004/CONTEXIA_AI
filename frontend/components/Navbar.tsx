@@ -31,8 +31,6 @@ export function Navbar({ transparent = false }: NavbarProps) {
 
   const navLinks = [
     { label: 'Dashboard', href: '/dashboard', icon: TrendingUp, auth: true },
-    { label: 'Upload', href: '/upload', icon: UploadIcon, auth: false },
-    { label: 'Voice Lab', href: '/voice-lab', icon: Sparkles, auth: false },
   ]
 
   return (
@@ -78,11 +76,6 @@ export function Navbar({ transparent = false }: NavbarProps) {
                     {link.label}
                   </Button>
                 ))}
-            </div>
-
-            {/* Theme Toggle */}
-            <div className="ml-2">
-              <ThemeToggle />
             </div>
 
             {!isLoading && (
@@ -172,19 +165,11 @@ export function Navbar({ transparent = false }: NavbarProps) {
                   // Auth Buttons
                   <>
                     <Button
-                      variant="ghost"
                       size="sm"
-                      className="rounded-xl text-gray-300 hover:text-white hover:bg-white/10"
+                      className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25 rounded-xl px-6"
                       onClick={() => router.push('/login')}
                     >
                       Sign In
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25 rounded-xl px-6"
-                      onClick={() => router.push('/upload')}
-                    >
-                      Get Started
                     </Button>
                   </>
                 )}
@@ -279,28 +264,14 @@ export function Navbar({ transparent = false }: NavbarProps) {
                               router.push('/login')
                               setMobileMenuOpen(false)
                             }}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors text-left"
-                          >
-                            <span className="text-white">Sign In</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              router.push('/upload')
-                              setMobileMenuOpen(false)
-                            }}
                             className="w-full mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2 px-4 rounded-xl font-semibold shadow-lg shadow-indigo-500/25"
                           >
-                            Get Started
+                            Sign In
                           </button>
                         </div>
                       </>
                     )}
                     
-                    {/* Theme Toggle for Mobile */}
-                    <div className="pt-2 border-t border-white/10 flex items-center justify-between px-3 py-2">
-                      <span className="text-white text-sm">Theme</span>
-                      <ThemeToggle />
-                    </div>
                   </>
                 )}
               </div>
