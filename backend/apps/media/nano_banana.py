@@ -26,7 +26,7 @@ def generate_image_with_nano_banana(prompt: str, negative_prompt: str = "", aspe
             'error': error message if failed
         }
     """
-    api_key = getattr(settings, 'NANO_BANANA_API_KEY', 'AIzaSyDUfZBZVxFzONZQZN3p4qvWWG7yE4HX02s')
+    api_key = getattr(settings, 'NANO_BANANA_API_KEY', '')
     api_url = getattr(settings, 'NANO_BANANA_API_URL', 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict')
     
     try:
