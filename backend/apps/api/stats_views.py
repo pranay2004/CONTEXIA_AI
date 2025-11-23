@@ -63,14 +63,46 @@ def get_recent_activity(request):
             if trend_scores:
                 score = int(sum(trend_scores) / len(trend_scores))
         
+        # Extract LinkedIn and Twitter content for quick posting
+        linkedin_content = None
+        twitter_content = None
+        
+        if gen.content_json:
+            # LinkedIn
+            if 'linkedin' in gen.content_json:
+                linkedin_data = gen.content_json['linkedin']
+                if isinstance(linkedin_data, dict):
+                    linkedin_content = {
+                        'text': linkedin_data.get('post_text') or linkedin_data.get('text') or '',
+                        'hashtags': linkedin_data.get('hashtags', [])
+                    }
+            
+            # Twitter/X
+            if 'twitter_thread' in gen.content_json:
+                twitter_data = gen.content_json['twitter_thread']
+                if isinstance(twitter_data, list) and len(twitter_data) > 0:
+                    twitter_content = {
+                        'thread': twitter_data,
+                        'first_tweet': twitter_data[0] if twitter_data else ''
+                    }
+            elif 'x_thread' in gen.content_json:
+                twitter_data = gen.content_json['x_thread']
+                if isinstance(twitter_data, list) and len(twitter_data) > 0:
+                    twitter_content = {
+                        'thread': twitter_data,
+                        'first_tweet': twitter_data[0] if twitter_data else ''
+                    }
+        
         activities.append({
-            'id': gen.id,
+            'id': f'gen-{gen.id}',
             'action': 'generated',
             'title': gen.uploaded_file.original_filename if gen.uploaded_file else 'Content',
             'timestamp': gen.created_at.isoformat(),
             'status': 'completed',
             'formats': 3,
-            'score': score
+            'score': score,
+            'linkedin_content': linkedin_content,
+            'twitter_content': twitter_content
         })
     
     # Sort by timestamp and limit

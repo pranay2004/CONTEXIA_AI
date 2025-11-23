@@ -9,7 +9,6 @@ import {
   FileText, TrendingUp, Upload as UploadIcon, ChevronDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface NavbarProps {
   transparent?: boolean

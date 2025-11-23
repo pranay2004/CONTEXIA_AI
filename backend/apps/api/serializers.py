@@ -43,6 +43,8 @@ class GenerateRequestSerializer(serializers.Serializer):
         default=['linkedin', 'x_thread', 'threads', 'short_blog', 'long_blog']
     )
     trend_count = serializers.IntegerField(default=10, min_value=1, max_value=20)
+    has_images = serializers.BooleanField(default=False, required=False)
+    generate_images = serializers.BooleanField(default=False, required=False)
 
 
 class TrendArticleSerializer(serializers.ModelSerializer):

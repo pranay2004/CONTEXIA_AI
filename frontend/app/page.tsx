@@ -74,7 +74,7 @@ function ParallaxText({ children, baseVelocity = 100 }: { children: string; base
     const animate = (t: number) => {
       if (lastTimestamp !== 0) {
         const delta = t - lastTimestamp
-        let moveBy = directionFactor.current * baseVelocity * (delta / 1000)
+        let moveBy = directionFactor.current * baseVelocity * (delta / 5000)
         
         if (velocityFactor.get() < 0) {
           directionFactor.current = -1
@@ -83,7 +83,15 @@ function ParallaxText({ children, baseVelocity = 100 }: { children: string; base
         }
         
         moveBy += directionFactor.current * moveBy * velocityFactor.get()
-        baseX.set(baseX.get() + moveBy)
+        
+        // Infinite loop: wrap around at -100% or 0%
+        let newX = baseX.get() + moveBy
+        if (newX <= -100) {
+          newX = 0
+        } else if (newX >= 0) {
+          newX = -100
+        }
+        baseX.set(newX)
       }
       lastTimestamp = t
       requestAnimationFrame(animate)
@@ -94,6 +102,8 @@ function ParallaxText({ children, baseVelocity = 100 }: { children: string; base
   return (
     <div className="overflow-hidden m-0 whitespace-nowrap flex flex-nowrap">
       <motion.div className="font-black text-6xl md:text-9xl uppercase tracking-tighter text-white/5 flex flex-nowrap" style={{ x }}>
+        <span className="block mr-8">{children} </span>
+        <span className="block mr-8">{children} </span>
         <span className="block mr-8">{children} </span>
         <span className="block mr-8">{children} </span>
         <span className="block mr-8">{children} </span>

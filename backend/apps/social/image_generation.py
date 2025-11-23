@@ -1,371 +1,130 @@
 """
-AI Image Generation using DALL-E 3 and Stable Diffusion
+Unified AI Image Generation Service
+Priority: Nano Banana (Google) -> Freepik -> Fal.ai
 """
 import logging
-import os
-from typing import Dict, List, Optional, Literal
-from io import BytesIO
-import requests
-from PIL import Image
-from django.conf import settings
+import base64
+import uuid
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-import openai
 
-# Optional replicate import for Stable Diffusion (Python 3.14 compatibility issue)
-try:
-    import replicate
-    REPLICATE_AVAILABLE = True
-except Exception as e:
-    logger = logging.getLogger(__name__)
-    logger.warning(f"Replicate not available: {e}")
-    REPLICATE_AVAILABLE = False
-    replicate = None
+# Import your specific provider modules
+# Ensure these files exist in backend/apps/media/
+from apps.media.nano_banana import generate_image_with_nano_banana
+from apps.media.freepik_ai import generate_image_with_freepik
+from apps.media.fal_ai import generate_image_with_fal
 
 logger = logging.getLogger(__name__)
 
-# Initialize APIs
-openai.api_key = settings.OPENAI_API_KEY
-
-
 class ImageGenerator:
-    """Generate images using DALL-E 3 and Stable Diffusion"""
-    
-    DALL_E_COST_PER_IMAGE = 0.04  # $0.04 per 1024x1024 image
-    DALL_E_HD_COST_PER_IMAGE = 0.08  # $0.08 per HD image
-    
-    def __init__(self):
-        self.dalle_model = "dall-e-3"
-        self.sd_model = "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b"
-    
-    def generate_image(
-        self,
-        prompt: str,
-        size: Literal["1024x1024", "1024x1792", "1792x1024"] = "1024x1024",
-        quality: Literal["standard", "hd"] = "standard",
-        style: Literal["vivid", "natural"] = "vivid",
-        use_dalle: bool = True,
-        n: int = 1,
-    ) -> List[Dict[str, str]]:
+    """
+    Orchestrates image generation across multiple providers with fallback logic.
+    """
+
+    def generate_image(self, prompt: str, size="1024x1024", n=1, **kwargs):
         """
-        Generate images using AI
+        Attempts to generate an image using providers in sequence.
+        Returns list of objects: [{'url': '...', 'provider': 'name', ...}]
+        """
         
-        Args:
-            prompt: Text description of desired image
-            size: Image dimensions
-            quality: Image quality (DALL-E only)
-            style: Image style (DALL-E only)
-            use_dalle: Use DALL-E 3 (True) or Stable Diffusion (False)
-            n: Number of images to generate
-            
-        Returns:
-            List of generated image data with URLs and metadata
-        """
-        # Optimize prompt
-        optimized_prompt = self._optimize_prompt(prompt)
-        
-        if use_dalle:
-            return self._generate_with_dalle(optimized_prompt, size, quality, style, n)
-        else:
-            return self._generate_with_stable_diffusion(optimized_prompt, size, n)
-    
-    def _optimize_prompt(self, prompt: str) -> str:
-        """
-        Use GPT-4o-mini to optimize image generation prompt
-        """
+        # 1. Attempt Nano Banana (Primary)
         try:
-            response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert at writing prompts for image generation AI. Enhance the user's prompt to be more detailed, specific, and effective for generating high-quality images. Keep it under 400 characters."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Optimize this image prompt: {prompt}"
-                    }
-                ],
-                temperature=0.7,
-                max_tokens=150,
+            logger.info(f"Attempting Nano Banana generation for: {prompt[:30]}...")
+            # Map generic size to Nano Banana aspect ratio
+            aspect_ratio = "1:1" 
+            if size == "1024x1792": aspect_ratio = "9:16"
+            elif size == "1792x1024": aspect_ratio = "16:9"
+
+            result = generate_image_with_nano_banana(
+                prompt=prompt, 
+                aspect_ratio=aspect_ratio, 
+                num_images=n
             )
             
-            optimized = response.choices[0].message.content.strip()
-            logger.info(f"Prompt optimized from '{prompt}' to '{optimized}'")
-            return optimized
+            if result['status'] == 'success':
+                return self._process_results(result['images'], prompt, 'nano-banana')
+            
+            logger.warning(f"Nano Banana failed: {result.get('error')}")
             
         except Exception as e:
-            logger.warning(f"Prompt optimization failed, using original: {e}")
-            return prompt
-    
-    def _generate_with_dalle(
-        self,
-        prompt: str,
-        size: str,
-        quality: str,
-        style: str,
-        n: int,
-    ) -> List[Dict[str, str]]:
-        """Generate images using DALL-E 3"""
+            logger.error(f"Nano Banana exception: {e}")
+
+        # 2. Fallback to Freepik
         try:
-            response = openai.Image.create(
-                model=self.dalle_model,
-                prompt=prompt,
-                n=n,
-                size=size,
-                quality=quality,
-                style=style,
-            )
+            logger.info("Falling back to Freepik...")
+            result = generate_image_with_freepik(prompt, num_images=n)
             
-            results = []
-            cost_per_image = self.DALL_E_HD_COST_PER_IMAGE if quality == "hd" else self.DALL_E_COST_PER_IMAGE
+            if result['status'] == 'success':
+                return self._process_results(result['images'], prompt, 'freepik')
             
-            for image_data in response.data:
-                # Download and save image
-                image_url = image_data.url
-                saved_path = self._download_and_save_image(image_url, "dalle")
+            logger.warning(f"Freepik failed: {result.get('error')}")
+                
+        except Exception as e:
+            logger.error(f"Freepik exception: {e}")
+
+        # 3. Fallback to Fal.ai
+        try:
+            logger.info("Falling back to Fal.ai...")
+            # Map size to Fal.ai format
+            fal_size = "square_hd"
+            if size == "1024x1792": fal_size = "portrait_16_9"
+            elif size == "1792x1024": fal_size = "landscape_16_9"
+
+            result = generate_image_with_fal(prompt, num_images=n, size=fal_size)
+            
+            if result['status'] == 'success':
+                return self._process_results(result['images'], prompt, 'fal-ai')
+            
+            logger.warning(f"Fal.ai failed: {result.get('error')}")
+                
+        except Exception as e:
+            logger.error(f"Fal.ai exception: {e}")
+
+        # If we reach here, everything failed
+        raise Exception("All image generation providers failed. Please check API keys or try again later.")
+
+    def _process_results(self, base64_images, prompt, provider):
+        """
+        Decodes Base64 images, saves them to storage, and returns URLs.
+        """
+        results = []
+        for b64_str in base64_images:
+            try:
+                # Clean base64 string if it has header
+                if ';base64,' in b64_str:
+                    format_str, imgstr = b64_str.split(';base64,')
+                    ext = format_str.split('/')[-1]
+                else:
+                    imgstr = b64_str
+                    ext = 'png'
+
+                data = base64.b64decode(imgstr)
+                
+                # Generate unique filename
+                filename = f"generated/{provider}_{uuid.uuid4().hex}.{ext}"
+                
+                # Save to Django Default Storage (Media folder)
+                file_path = default_storage.save(filename, ContentFile(data))
+                
+                # Generate Full URL
+                # NOTE: In local dev, default_storage.url might return a relative path '/media/...'
+                # The view will handle making it absolute if needed, or we assume frontend handles root.
+                file_url = default_storage.url(file_path)
                 
                 results.append({
-                    'url': saved_path,
-                    'original_url': image_url,
+                    'url': file_url,
                     'prompt': prompt,
-                    'generator': 'dalle-3',
-                    'size': size,
-                    'quality': quality,
-                    'style': style,
-                    'cost': cost_per_image,
-                    'revised_prompt': getattr(image_data, 'revised_prompt', prompt),
+                    'generator': provider,
+                    'original_url': file_url # Frontend expects this key sometimes
                 })
-            
-            total_cost = cost_per_image * n
-            logger.info(f"Generated {n} images with DALL-E 3 (${total_cost:.2f})")
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"DALL-E generation failed: {e}")
-            # Fallback to Stable Diffusion
-            logger.info("Falling back to Stable Diffusion...")
-            return self._generate_with_stable_diffusion(prompt, size, n)
-    
-    def _generate_with_stable_diffusion(
-        self,
-        prompt: str,
-        size: str,
-        n: int,
-    ) -> List[Dict[str, str]]:
-        """Generate images using Stable Diffusion XL via Replicate"""
-        if not REPLICATE_AVAILABLE:
-            raise Exception("Stable Diffusion not available: Replicate package not compatible with Python 3.14. Please use DALL-E instead.")
-        
-        try:
-            # Parse size
-            width, height = map(int, size.split('x'))
-            
-            results = []
-            
-            for i in range(n):
-                output = replicate.run(
-                    self.sd_model,
-                    input={
-                        "prompt": prompt,
-                        "width": width,
-                        "height": height,
-                        "num_outputs": 1,
-                        "scheduler": "K_EULER",
-                        "num_inference_steps": 50,
-                        "guidance_scale": 7.5,
-                        "prompt_strength": 0.8,
-                    }
-                )
+                logger.info(f"Saved generated image to {file_url}")
                 
-                # output is a list of URLs
-                for image_url in output:
-                    saved_path = self._download_and_save_image(image_url, "stable_diffusion")
-                    
-                    results.append({
-                        'url': saved_path,
-                        'original_url': image_url,
-                        'prompt': prompt,
-                        'generator': 'stable-diffusion-xl',
-                        'size': size,
-                        'quality': 'standard',
-                        'style': 'natural',
-                        'cost': 0.0,  # Free via Replicate (or low cost depending on plan)
-                        'revised_prompt': prompt,
-                    })
-            
-            logger.info(f"Generated {n} images with Stable Diffusion XL")
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"Stable Diffusion generation failed: {e}")
-            raise Exception(f"Image generation failed: {str(e)}")
-    
-    def _download_and_save_image(self, url: str, prefix: str) -> str:
-        """
-        Download image from URL and save to media storage
-        
-        Returns:
-            str: Path to saved image
-        """
-        try:
-            # Download image
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-            
-            # Open with PIL
-            img = Image.open(BytesIO(response.content))
-            
-            # Generate filename
-            import uuid
-            filename = f"generated/{prefix}_{uuid.uuid4().hex}.png"
-            
-            # Save to storage
-            buffer = BytesIO()
-            img.save(buffer, format='PNG', optimize=True)
-            buffer.seek(0)
-            
-            path = default_storage.save(filename, ContentFile(buffer.read()))
-            
-            # Get full URL
-            full_url = default_storage.url(path)
-            
-            logger.info(f"Saved generated image to {path}")
-            
-            return full_url
-            
-        except Exception as e:
-            logger.error(f"Failed to download/save image: {e}")
-            # Return original URL as fallback
-            return url
-    
-    def generate_variations(
-        self,
-        image_url: str,
-        n: int = 3,
-    ) -> List[Dict[str, str]]:
-        """
-        Generate variations of an existing image (DALL-E only)
-        
-        Args:
-            image_url: URL of source image
-            n: Number of variations
-            
-        Returns:
-            List of variation image data
-        """
-        try:
-            # Download source image
-            response = requests.get(image_url, timeout=30)
-            response.raise_for_status()
-            
-            # DALL-E variations API
-            image_file = BytesIO(response.content)
-            image_file.name = "image.png"
-            
-            dalle_response = openai.Image.create_variation(
-                image=image_file,
-                n=n,
-                size="1024x1024",
-            )
-            
-            results = []
-            for image_data in dalle_response.data:
-                saved_path = self._download_and_save_image(image_data.url, "dalle_variation")
+            except Exception as e:
+                logger.error(f"Failed to save image from {provider}: {e}")
                 
-                results.append({
-                    'url': saved_path,
-                    'original_url': image_data.url,
-                    'prompt': 'Variation of source image',
-                    'generator': 'dalle-3-variation',
-                    'size': '1024x1024',
-                    'cost': self.DALL_E_COST_PER_IMAGE,
-                })
-            
-            logger.info(f"Generated {n} image variations")
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"Variation generation failed: {e}")
-            raise Exception(f"Variation generation failed: {str(e)}")
-    
-    def get_style_presets(self) -> Dict[str, Dict[str, str]]:
-        """Get predefined style presets for image generation"""
-        return {
-            'photorealistic': {
-                'name': 'Photorealistic',
-                'prompt_suffix': ', photorealistic, ultra detailed, 8k resolution, professional photography',
-                'style': 'natural',
-            },
-            'digital_art': {
-                'name': 'Digital Art',
-                'prompt_suffix': ', digital art, highly detailed, artstation, concept art, smooth, sharp focus',
-                'style': 'vivid',
-            },
-            'illustration': {
-                'name': 'Illustration',
-                'prompt_suffix': ', illustration, colorful, vibrant, detailed, professional',
-                'style': 'vivid',
-            },
-            '3d_render': {
-                'name': '3D Render',
-                'prompt_suffix': ', 3D render, octane render, highly detailed, volumetric lighting',
-                'style': 'vivid',
-            },
-            'watercolor': {
-                'name': 'Watercolor',
-                'prompt_suffix': ', watercolor painting, soft colors, artistic, beautiful',
-                'style': 'natural',
-            },
-            'anime': {
-                'name': 'Anime',
-                'prompt_suffix': ', anime style, manga, detailed, vibrant colors',
-                'style': 'vivid',
-            },
-            'minimalist': {
-                'name': 'Minimalist',
-                'prompt_suffix': ', minimalist, clean design, simple, elegant',
-                'style': 'natural',
-            },
-            'vintage': {
-                'name': 'Vintage',
-                'prompt_suffix': ', vintage style, retro, nostalgic, film grain',
-                'style': 'natural',
-            },
-        }
-    
-    def apply_style_preset(self, prompt: str, preset_key: str) -> Dict[str, str]:
-        """
-        Apply a style preset to a prompt
-        
-        Returns:
-            Dict with enhanced prompt and recommended settings
-        """
-        presets = self.get_style_presets()
-        
-        if preset_key not in presets:
-            preset_key = 'photorealistic'
-        
-        preset = presets[preset_key]
-        
-        return {
-            'prompt': prompt + preset['prompt_suffix'],
-            'style': preset['style'],
-            'preset_name': preset['name'],
-        }
+        return results
 
-
-# Convenience functions
-def generate_image(prompt: str, **kwargs) -> List[Dict[str, str]]:
-    """Generate images using default generator"""
+# Convenience function for external calls
+def generate_image(prompt: str, **kwargs):
     generator = ImageGenerator()
     return generator.generate_image(prompt, **kwargs)
-
-
-def generate_variations(image_url: str, n: int = 3) -> List[Dict[str, str]]:
-    """Generate variations of an image"""
-    generator = ImageGenerator()
-    return generator.generate_variations(image_url, n)

@@ -15,9 +15,9 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 seconds
+  timeout: 300000, // 5 minutes (300 seconds) for long-running tasks
   maxRedirects: 5,
-  // REMOVED: validateStatus so axios throws on 4xx/5xx errors
+  withCredentials: true,
 })
 
 // Request interceptor - add auth token
@@ -45,13 +45,13 @@ apiClient.interceptors.response.use(
     })
 
     const status = error.response?.status
+    // Only show toast for critical errors, not 500s on every request
     if (status === 401) {
       toast.error('Session expired. Please login again.')
     } else if (status === 403) {
       toast.error('Access denied')
-    } else if (status && status >= 500) {
-      toast.error('Server error. Please try again later.')
     }
+    // Remove the 500 error toast - let individual pages handle it
     
     return Promise.reject(error)
   }
@@ -96,12 +96,16 @@ export interface GenerateContentRequest {
   trend_count?: number
   custom_context?: string
   tone?: string
+  has_images?: boolean  // Indicates if manual images were uploaded
+  generate_images?: boolean  // Explicitly request AI image generation
 }
 
 // Interface for the response from the generation API
 export interface GenerateContentResponse {
   task_id?: string
+  image_task_id?: string  // Task ID for background image generation
   status?: string
+  message?: string
   generated_content?: any
 }
 

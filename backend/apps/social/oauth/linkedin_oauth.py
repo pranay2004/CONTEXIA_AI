@@ -6,6 +6,7 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
+from urllib.parse import urlencode
 import logging
 
 logger = logging.getLogger(__name__)
@@ -50,7 +51,8 @@ class LinkedInOAuth:
         if state:
             params['state'] = state
         
-        query_string = '&'.join([f"{k}={v}" for k, v in params.items()])
+        # Use urlencode to properly encode the parameters
+        query_string = urlencode(params)
         return f"{self.AUTHORIZATION_URL}?{query_string}"
     
     def exchange_code_for_token(self, code):
@@ -64,6 +66,7 @@ class LinkedInOAuth:
             dict: Token data with access_token, expires_in, etc.
         """
         try:
+            # LinkedIn requires form-encoded data, not JSON
             data = {
                 'grant_type': 'authorization_code',
                 'code': code,
@@ -72,7 +75,22 @@ class LinkedInOAuth:
                 'client_secret': self.client_secret,
             }
             
-            response = requests.post(self.TOKEN_URL, data=data, timeout=10)
+            headers = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+            
+            logger.info(f"LinkedIn token exchange request - redirect_uri: {self.redirect_uri}")
+            logger.info(f"LinkedIn token exchange request - client_id: {self.client_id}")
+            
+            response = requests.post(self.TOKEN_URL, data=data, headers=headers, timeout=10)
+            
+            # Log the response for debugging
+            logger.info(f"LinkedIn token exchange status: {response.status_code}")
+            if response.status_code != 200:
+                logger.error(f"LinkedIn token error response: {response.text}")
+                # Return more detailed error
+                raise Exception(f"LinkedIn API error ({response.status_code}): {response.text}")
+            
             response.raise_for_status()
             
             token_data = response.json()

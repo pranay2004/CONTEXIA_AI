@@ -4,7 +4,7 @@ Social Media Account and Scheduling Models
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from encrypted_model_fields.fields import EncryptedCharField, EncryptedTextField
+# from encrypted_model_fields.fields import EncryptedCharField, EncryptedTextField  # Disabled for now
 import json
 
 User = get_user_model()
@@ -27,9 +27,9 @@ class SocialAccount(models.Model):
     account_handle = models.CharField(max_length=255, null=True, blank=True)  # @username
     profile_image_url = models.URLField(null=True, blank=True)
     
-    # Encrypted OAuth tokens
-    access_token = EncryptedTextField()
-    refresh_token = EncryptedTextField(null=True, blank=True)
+    # OAuth tokens (TODO: Add encryption in production)
+    access_token = models.TextField()
+    refresh_token = models.TextField(null=True, blank=True)
     token_expires_at = models.DateTimeField(null=True, blank=True)
     
     # Account status

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { 
   ArrowUpRight, 
@@ -12,26 +12,54 @@ import {
   Zap,
   Clock,
   Loader2,
-  FileText
+  FileText,
+  Linkedin,
+  Twitter,
+  Send,
+  Filter,
+  Search,
+  Calendar,
+  Eye,
+  Download,
+  Trash2,
+  MoreVertical,
+  CheckCircle2,
+  XCircle,
+  Youtube,
+  FileCode,
+  Mail,
+  Image as ImageIcon,
+  BarChart3,
+  RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getUserAnalytics, getRecentActivity, getGeneratedContent, UserStats } from '@/lib/api-client'
+import { socialApi } from '@/lib/api/social'
 import { toast } from 'sonner'
 import { ContentDetailsModal } from '@/components/ContentDetailsModal'
+import { format } from 'date-fns'
 
 export const dynamic = 'force-dynamic'
+
+type FilterType = 'all' | 'completed' | 'processing' | 'failed'
+type ViewMode = 'grid' | 'list'
 
 export default function DashboardPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<UserStats | null>(null)
   const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [filteredActivity, setFilteredActivity] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterType, setFilterType] = useState<FilterType>('all')
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
   
   // Preview Modal State
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewContent, setPreviewContent] = useState<any>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
+  const [postingTo, setPostingTo] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
@@ -42,7 +70,10 @@ export default function DashboardPage() {
         ])
         
         if (statsData) setStats(statsData)
-        if (activityData && Array.isArray(activityData)) setRecentActivity(activityData)
+        if (activityData && Array.isArray(activityData)) {
+          setRecentActivity(activityData)
+          setFilteredActivity(activityData)
+        }
         
       } catch (error) {
         console.error('Dashboard load failed', error)
@@ -52,6 +83,84 @@ export default function DashboardPage() {
     }
     loadData()
   }, [])
+
+  // Filter and search logic
+  useEffect(() => {
+    let filtered = recentActivity
+
+    // Apply status filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter(item => item.status === filterType)
+    }
+
+    // Apply search filter
+    if (searchQuery) {
+      filtered = filtered.filter(item => 
+        item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.platform?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+
+    setFilteredActivity(filtered)
+  }, [filterType, searchQuery, recentActivity])
+
+  const refreshData = async () => {
+    setLoading(true)
+    try {
+      const [statsData, activityData] = await Promise.all([
+        getUserAnalytics(),
+        getRecentActivity()
+      ])
+      if (statsData) setStats(statsData)
+      if (activityData && Array.isArray(activityData)) {
+        setRecentActivity(activityData)
+        setFilteredActivity(activityData)
+      }
+      toast.success('Dashboard refreshed')
+    } catch (error) {
+      toast.error('Failed to refresh data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle Post to Social Media
+  const handlePostToSocial = async (e: React.MouseEvent, platform: 'linkedin' | 'twitter', content: any, item: any) => {
+    e.stopPropagation() // Prevent preview modal from opening
+    
+    try {
+      setPostingTo(`${item.id}-${platform}`)
+      
+      // Check if account is connected
+      const accounts = await socialApi.getAccounts()
+      const connected = accounts.some((acc: any) => acc.platform === platform && acc.is_active)
+      
+      if (!connected) {
+        // Initiate OAuth
+        localStorage.setItem('oauth_pending_platform', platform)
+        const { authorization_url } = await socialApi.getAuthUrl(platform)
+        if (authorization_url) {
+          window.location.href = authorization_url
+        }
+        return
+      }
+      
+      // Post content
+      const text = platform === 'linkedin' ? content.text : content.first_tweet
+      if (!text) {
+        toast.error('No content available to post')
+        return
+      }
+      
+      await socialApi.directPost(platform, text)
+      toast.success(`Successfully posted to ${platform === 'linkedin' ? 'LinkedIn' : 'Twitter'}!`)
+    } catch (error) {
+      console.error('Post error:', error)
+      toast.error(`Failed to post to ${platform === 'linkedin' ? 'LinkedIn' : 'Twitter'}`)
+    } finally {
+      setPostingTo(null)
+    }
+  }
 
   // Handle Click on Activity Item
   const handleActivityClick = async (item: any) => {
@@ -76,27 +185,62 @@ export default function DashboardPage() {
     }
   }
 
+  // Get platform icon
+  const getPlatformIcon = (platform: string) => {
+    switch(platform) {
+      case 'linkedin': return Linkedin
+      case 'twitter': return Twitter
+      case 'youtube': return Youtube
+      case 'blog': return FileCode
+      case 'email': return Mail
+      case 'images': return ImageIcon
+      default: return FileText
+    }
+  }
+
+  // Get platform color
+  const getPlatformColor = (platform: string) => {
+    switch(platform) {
+      case 'linkedin': return 'text-blue-400 bg-blue-500/10'
+      case 'twitter': return 'text-sky-400 bg-sky-500/10'
+      case 'youtube': return 'text-red-400 bg-red-500/10'
+      case 'blog': return 'text-purple-400 bg-purple-500/10'
+      case 'email': return 'text-green-400 bg-green-500/10'
+      case 'images': return 'text-indigo-400 bg-indigo-500/10'
+      default: return 'text-gray-400 bg-gray-500/10'
+    }
+  }
+
   const statCards = [
     { 
-      label: 'Total Impressions', 
-      value: stats?.total_posts ? stats.total_posts.toLocaleString() : '-', 
-      change: '+12%', 
-      icon: Users, 
+      label: 'Total Content', 
+      value: recentActivity.length.toString(), 
+      change: `+${recentActivity.filter(i => i.status === 'completed').length} completed`, 
+      icon: FileText, 
       color: 'text-blue-400' 
     },
     { 
-      label: 'Avg. Engagement', 
-      value: stats?.engagement_rate ? `${stats.engagement_rate}%` : '-', 
-      change: '+2.1%', 
-      icon: TrendingUp, 
+      label: 'Success Rate', 
+      value: recentActivity.length > 0 
+        ? `${Math.round((recentActivity.filter(i => i.status === 'completed').length / recentActivity.length) * 100)}%`
+        : '0%', 
+      change: 'Generation quality', 
+      icon: CheckCircle2, 
       color: 'text-green-400' 
     },
     { 
-      label: 'Content Efficiency', 
-      value: stats?.hours_saved ? `${stats.hours_saved}h` : '-', 
-      change: 'Saved this mo.', 
+      label: 'Time Saved', 
+      value: `${Math.round(recentActivity.length * 1.5)}h`, 
+      change: 'Automation efficiency', 
       icon: Zap, 
       color: 'text-purple-400' 
+    },
+    { 
+      label: 'Active Platforms', 
+      value: new Set(recentActivity.map(i => i.platform)).size.toString(), 
+      change: 'Multi-channel', 
+      icon: BarChart3, 
+      color: 'text-indigo-400' 
     },
   ]
 
@@ -137,7 +281,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -168,75 +312,195 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent Activity Feed */}
+      {/* Enhanced Previously Generated Content Section */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
         className="glass-panel rounded-2xl overflow-hidden border border-white/10"
       >
-        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+        <div className="p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/[0.02]">
           <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-indigo-400" />
-            <h3 className="font-bold">Recent Generation Events</h3>
+            <Activity className="w-5 h-5 text-indigo-400" />
+            <h3 className="font-bold text-lg">Previously Generated Content</h3>
+            <span className="text-xs px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded-full">
+              {filteredActivity.length}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Search */}
+            <div className="relative flex-1 md:flex-none md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search content..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-10 pl-10 pr-4 bg-black/20 border border-white/10 rounded-lg text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
+              />
+            </div>
+            
+            {/* Filter */}
+            <div className="flex items-center gap-1 bg-black/20 p-1 rounded-lg border border-white/10">
+              {(['all', 'completed', 'processing', 'failed'] as FilterType[]).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-all capitalize",
+                    filterType === type 
+                      ? "bg-indigo-500 text-white" 
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            
+            {/* Refresh Button */}
+            <Button
+              onClick={refreshData}
+              disabled={loading}
+              variant="outline"
+              size="sm"
+              className="h-10"
+            >
+              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+            </Button>
           </div>
         </div>
         
         <div className="divide-y divide-white/5">
           {loading ? (
-            <div className="p-8 text-center text-gray-500">Loading neural logs...</div>
-          ) : recentActivity.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">No recent activity detected.</div>
-          ) : (
-            recentActivity.map((item, i) => {
-              const isClickable = item.id && item.id.toString().startsWith('gen-');
-              
-              return (
-                <div 
-                  key={i} 
-                  onClick={() => handleActivityClick(item)}
-                  className={cn(
-                    "p-4 flex items-center justify-between transition-all duration-200 group border-l-2 border-transparent",
-                    isClickable 
-                      ? "hover:bg-white/[0.05] cursor-pointer hover:border-indigo-500 hover:pl-5" 
-                      : "hover:bg-white/[0.02] cursor-default"
-                  )}
+            <div className="p-12 text-center">
+              <Loader2 className="w-12 h-12 mx-auto mb-4 text-indigo-500 animate-spin" />
+              <p className="text-gray-400">Loading content history...</p>
+            </div>
+          ) : filteredActivity.length === 0 ? (
+            <div className="p-12 text-center">
+              <FileText className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+              <p className="text-gray-400 mb-2">
+                {searchQuery || filterType !== 'all' 
+                  ? 'No content matches your filters' 
+                  : 'No content generated yet'}
+              </p>
+              {(!searchQuery && filterType === 'all') && (
+                <Button 
+                  onClick={() => router.push('/dashboard/content')}
+                  className="mt-4"
+                  variant="outline"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
-                      isClickable ? "bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:text-indigo-300" : "bg-slate-800 text-slate-500"
-                    )}>
-                      {item.platform === 'system' ? <FileText className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
-                    </div>
-                    <div>
-                      <p className={cn("font-medium text-sm transition-colors", isClickable ? "text-gray-200 group-hover:text-white" : "text-gray-400")}>
-                        {item.description || 'System Event'}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-500 flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {item.time_ago}
-                        </span>
-                        <span className="text-xs bg-white/5 px-2 py-0.5 rounded text-gray-400 capitalize">
-                          {item.platform}
-                        </span>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Create Your First Content
+                </Button>
+              )}
+            </div>
+          ) : (
+            <AnimatePresence>
+              {filteredActivity.map((item, i) => {
+                const isClickable = item.id && item.id.toString().startsWith('gen-');
+                const PlatformIcon = getPlatformIcon(item.platform)
+                const platformColor = getPlatformColor(item.platform)
+              
+                return (
+                  <motion.div 
+                    key={item.id || i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ delay: i * 0.05 }}
+                    onClick={() => isClickable && handleActivityClick(item)}
+                    className={cn(
+                      "p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200 group border-l-4 border-transparent",
+                      isClickable 
+                        ? "hover:bg-white/[0.05] cursor-pointer hover:border-indigo-500 hover:pl-6" 
+                        : "hover:bg-white/[0.02] cursor-default"
+                    )}
+                  >
+                    <div className="flex items-start md:items-center gap-4 flex-1">
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center transition-all shrink-0",
+                        platformColor,
+                        isClickable && "group-hover:scale-110 group-hover:shadow-lg"
+                      )}>
+                        <PlatformIcon className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className={cn(
+                            "font-medium text-sm transition-colors",
+                            isClickable ? "text-gray-200 group-hover:text-white" : "text-gray-400"
+                          )}>
+                            {item.description || 'System Event'}
+                          </p>
+                          <span className={cn(
+                            "text-xs px-2 py-1 rounded-full capitalize shrink-0",
+                            item.status === 'completed' 
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : item.status === 'processing'
+                              ? "bg-amber-500/20 text-amber-300"
+                              : "bg-red-500/20 text-red-300"
+                          )}>
+                            {item.status || 'unknown'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-2 flex-wrap">
+                          <span className="text-xs text-gray-500 flex items-center gap-1.5">
+                            <Clock className="w-3 h-3" /> {item.time_ago || 'Unknown time'}
+                          </span>
+                          <span className="text-xs bg-white/5 px-2 py-1 rounded text-gray-400 capitalize">
+                            {item.platform}
+                          </span>
+                          {isClickable && (
+                            <span className="text-xs text-indigo-400 font-medium flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Eye className="w-3 h-3" /> View Details
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {item.status === 'completed' ? (
-                      <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">Completed</span>
-                    ) : (
-                      <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-1 rounded-full">Processing</span>
-                    )}
-                    {isClickable && (
-                      <ArrowUpRight className="w-4 h-4 text-gray-600 group-hover:text-indigo-400 transition-colors transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                    )}
-                  </div>
-                </div>
-              )
-            })
+                    
+                    <div className="flex items-center gap-2 md:ml-4">
+                      {/* Social Post Buttons */}
+                      {item.linkedin_content && item.linkedin_content.text && (
+                        <button
+                          onClick={(e) => handlePostToSocial(e, 'linkedin', item.linkedin_content, item)}
+                          disabled={postingTo === `${item.id}-linkedin`}
+                          className="p-2.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Post to LinkedIn"
+                        >
+                          {postingTo === `${item.id}-linkedin` ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Linkedin className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+                      {item.twitter_content && item.twitter_content.first_tweet && (
+                        <button
+                          onClick={(e) => handlePostToSocial(e, 'twitter', item.twitter_content, item)}
+                          disabled={postingTo === `${item.id}-twitter`}
+                          className="p-2.5 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 transition-all hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Post to Twitter"
+                        >
+                          {postingTo === `${item.id}-twitter` ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Twitter className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+                      
+                      {isClickable && (
+                        <ArrowUpRight className="w-5 h-5 text-gray-600 group-hover:text-indigo-400 transition-all transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:scale-110" />
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
           )}
         </div>
       </motion.div>

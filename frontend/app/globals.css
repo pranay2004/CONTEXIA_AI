@@ -109,3 +109,11 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
+
+/* Ensure dialogs and modals appear above everything */
+[data-radix-popper-content-wrapper],
+[data-radix-dialog-overlay],
+[data-radix-dialog-content],
+[role="dialog"] {
+  z-index: 9999 !important;
+}

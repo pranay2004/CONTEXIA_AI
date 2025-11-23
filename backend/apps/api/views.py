@@ -161,8 +161,10 @@ def check_task_status(request, task_id):
 def generate_content(request):
     """
     Generate platform-optimized content using AI + RAG (Asynchronous with Celery)
+    Only triggers AI image generation if explicitly requested via 'generate_images' flag
     """
     from apps.generator.tasks import generate_content_async
+    from apps.media.tasks import generate_ai_images
     
     serializer = GenerateRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -173,18 +175,45 @@ def generate_content(request):
         uploaded_file = UploadedFile.objects.get(id=data['uploaded_file_id'])
         user_id = request.user.id if request.user.is_authenticated else None
         
-        task = generate_content_async.delay(
+        # Start content generation task
+        content_task = generate_content_async.delay(
             uploaded_file_id=data['uploaded_file_id'],
             platforms=data.get('platforms', ['linkedin', 'twitter', 'blog']),
             trend_count=data.get('trend_count', 5),
             user_id=user_id
         )
         
-        return Response({
-            'task_id': task.id,
+        # Only start AI image generation if explicitly requested
+        image_task = None
+        generate_images = data.get('generate_images', False)
+        has_manual_images = data.get('has_images', False)
+        
+        # Only generate AI images if:
+        # 1. User explicitly requested it (generate_images=True)
+        # 2. No manual images were provided
+        # 3. There's text content to work with
+        if generate_images and not has_manual_images and uploaded_file.extracted_text:
+            image_task = generate_ai_images.delay(
+                text_content=uploaded_file.extracted_text[:2000],  # Use first 2000 chars
+                num_images=4,
+                user_id=user_id
+            )
+            logger.info(f"AI image generation task started: {image_task.id}")
+        else:
+            logger.info(f"Skipping AI image generation - generate_images={generate_images}, has_manual_images={has_manual_images}")
+        
+        response_data = {
+            'task_id': content_task.id,
             'status': 'processing',
             'message': 'Content generation started. Poll /api/jobs/{task_id}/ for status.'
-        }, status=status.HTTP_202_ACCEPTED)
+        }
+        
+        # Include image task ID if started
+        if image_task:
+            response_data['image_task_id'] = image_task.id
+            response_data['message'] += ' AI images are being generated in the background.'
+        
+        return Response(response_data, status=status.HTTP_202_ACCEPTED)
         
     except UploadedFile.DoesNotExist:
         return Response({'error': 'Uploaded file not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -338,6 +367,7 @@ def upload_voice_sample(request):
         return Response({'error': str(e)}, status=500)
 
 @api_view(['POST'])
+@permission_classes([])  # Allow unauthenticated access
 def extract_content(request):
     serializer = FileUploadSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -427,6 +457,157 @@ def generate_viral_hooks(request):
     except Exception as e:
         logger.error(f"Error generating hooks: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([])  # Allow unauthenticated access
+def process_images(request):
+    """
+    Process up to 4 images: create collage and add professional frames with AI-powered design.
+    """
+    from apps.media.image_processor import ImageProcessor
+    from apps.media.models import ProcessedImage
+    
+    # Get uploaded images
+    image_files = []
+    for i in range(1, 5):  # max 4 images
+        file_key = f'image_{i}'
+        if file_key in request.FILES:
+            image_files.append(request.FILES[file_key])
+    
+    if not image_files:
+        return Response({'error': 'No images provided'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if len(image_files) > 4:
+        return Response({'error': 'Maximum 4 images allowed'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Get user if authenticated
+        user = request.user if request.user.is_authenticated else None
+        
+        # Get optional content text for AI-powered design
+        content_text = request.data.get('content_text', None) or request.POST.get('content_text', None)
+        
+        # Process images with optional AI-powered design
+        collage_file, framed_files = ImageProcessor.create_professional_collage_with_frames(
+            image_files, 
+            content_text=content_text
+        )
+        
+        # Save to database
+        # First, create or get an UploadedFile for reference
+        uploaded_file = UploadedFile.objects.create(
+            user=user,
+            original_filename='image_batch',
+            file_type='image',
+            extracted_text='',
+            word_count=0
+        )
+        
+        # Save collage
+        collage = ProcessedImage.objects.create(
+            user=user,
+            uploaded_file=uploaded_file,
+            image_type='collage',
+            image_file=collage_file,
+            processing_params={'image_count': len(image_files)}
+        )
+        
+        # Save framed images
+        framed_images = []
+        for idx, framed_file in enumerate(framed_files):
+            framed = ProcessedImage.objects.create(
+                user=user,
+                uploaded_file=uploaded_file,
+                image_type='framed',
+                image_file=framed_file,
+                processing_params={'frame_index': idx, 'frame_style': ['classic', 'modern', 'minimal', 'elegant'][idx % 4]}
+            )
+            framed_images.append({
+                'id': framed.id,
+                'url': request.build_absolute_uri(framed.image_file.url),
+                'width': framed.width,
+                'height': framed.height
+            })
+        
+        return Response({
+            'collage': {
+                'id': collage.id,
+                'url': request.build_absolute_uri(collage.image_file.url),
+                'width': collage.width,
+                'height': collage.height
+            },
+            'framed_images': framed_images,
+            'uploaded_file_id': uploaded_file.id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error processing images: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([])  # Allow unauthenticated access
+def generate_ai_images(request):
+    """
+    Generate AI images using Nano Banana API via Celery task
+    """
+    from apps.media.tasks import generate_ai_images as generate_task
+    
+    text_content = request.data.get('text_content', '')
+    num_images = int(request.data.get('num_images', 4))
+    
+    if not text_content:
+        return Response({'error': 'text_content is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if num_images < 1 or num_images > 4:
+        return Response({'error': 'num_images must be between 1 and 4'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user_id = request.user.id if request.user.is_authenticated else None
+        
+        # Start Celery task
+        task = generate_task.delay(text_content, num_images, user_id)
+        
+        return Response({
+            'status': 'processing',
+            'task_id': task.id,
+            'message': 'AI image generation started. Use task_id to check status.'
+        }, status=status.HTTP_202_ACCEPTED)
+        
+    except Exception as e:
+        logger.error(f"Error starting AI image generation: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def check_image_task_status(request, task_id):
+    """
+    Check the status of an AI image generation task
+    """
+    try:
+        task_result = AsyncResult(task_id)
+        
+        if task_result.ready():
+            if task_result.successful():
+                result = task_result.result
+                return Response({
+                    'status': 'completed',
+                    'result': result
+                })
+            else:
+                return Response({
+                    'status': 'failed',
+                    'error': str(task_result.result)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            return Response({
+                'status': 'processing',
+                'state': task_result.state
+            })
+    except Exception as e:
+        logger.error(f"Error checking image task status: {e}")
+        return Response({
+            'status': 'error',
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 def health_check(request):

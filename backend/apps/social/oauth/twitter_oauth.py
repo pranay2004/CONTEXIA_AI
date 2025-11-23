@@ -6,12 +6,11 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
+from urllib.parse import urlencode
 import logging
 import base64
 
 logger = logging.getLogger(__name__)
-
-
 class TwitterOAuth:
     """Twitter/X OAuth 2.0 Handler with PKCE"""
     
@@ -55,7 +54,8 @@ class TwitterOAuth:
         if state:
             params['state'] = state
         
-        query_string = '&'.join([f"{k}={v}" for k, v in params.items()])
+        # Use urlencode to properly encode the parameters
+        query_string = urlencode(params)
         return f"{self.AUTHORIZATION_URL}?{query_string}"
     
     def exchange_code_for_token(self, code, code_verifier):

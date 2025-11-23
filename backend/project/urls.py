@@ -18,6 +18,7 @@ urlpatterns = [
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/social/', include('apps.social.urls')),
+    path('api/users/', include('apps.users.urls')),  # Add users profile endpoint
 
     # ✅ GENERIC CATCH-ALL LAST
     path('api/', include('apps.api.urls')),

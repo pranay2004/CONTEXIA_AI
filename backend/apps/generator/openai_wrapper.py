@@ -49,6 +49,7 @@ class ContentStreamer:
             "threads": [],
             "youtube": {"title": "", "script": "", "description": ""},
             "short_blog": {"html": "", "title": "", "word_count": 0},
+            "email_newsletter": {"subject": "", "preheader": "", "html_body": "", "plain_text": ""},
             "meta": {}
         }
 
@@ -109,7 +110,7 @@ class ContentStreamer:
         """
         system_prompt = (
             "You are a Viral Social Media Strategist. Generate content adhering to these specific templates.\n"
-            "Return strictly valid JSON with keys: 'linkedin', 'x_thread', 'threads_post', 'youtube'.\n\n"
+            "Return strictly valid JSON with keys: 'linkedin', 'x_thread', 'threads_post', 'youtube', 'email_newsletter'.\n\n"
             
             "1. **LINKEDIN** (Professional & Storytelling):\n"
             "- **Hook** (1-2 lines): Bold insight, question, or surprising fact.\n"
@@ -124,6 +125,13 @@ class ContentStreamer:
             "- Tweet 1: Hook + Value (e.g., 'Consistency beats talent').\n"
             "- Tweets 2-N: The Lesson/Steps (One main point per tweet). Use arrows (→) and short sentences.\n"
             "- Final Tweet: Summary + CTA (Follow/Retweet).\n\n"
+            
+            "4. **EMAIL NEWSLETTER** (Professional Format):\n"
+            "- **Subject**: Compelling subject line (40-60 chars).\n"
+            "- **Preheader**: Supporting text (40-100 chars).\n"
+            "- **HTML Body**: Greeting + Hook + 3-5 key insights with <h2> headings + CTA.\n"
+            "- **Plain Text**: Text-only version.\n"
+            "- Use inline CSS, 600px width, professional styling.\n\n"
             
             "3. **YOUTUBE SCRIPT** (Engaging Video Structure):\n"
             "- **Intro** (10-15s): Hook question + Self-intro + Purpose.\n"
@@ -159,6 +167,12 @@ class ContentStreamer:
                 
             self.final_content["threads"] = data.get("threads_post", [])
             self.final_content["youtube"] = data.get("youtube", {"title": "", "script": ""})
+            self.final_content["email_newsletter"] = data.get("email_newsletter", {
+                "subject": "",
+                "preheader": "",
+                "html_body": "",
+                "plain_text": ""
+            })
             
             await self.queue.put({
                 "type": "social_complete",
@@ -166,7 +180,8 @@ class ContentStreamer:
                     "linkedin": self.final_content["linkedin"],
                     "x_thread": self.final_content["x_thread"],
                     "threads": self.final_content["threads"],
-                    "youtube": self.final_content["youtube"]
+                    "youtube": self.final_content["youtube"],
+                    "email_newsletter": self.final_content["email_newsletter"]
                 }
             })
             
@@ -204,9 +219,10 @@ class ContentStreamer:
 
 # --- SYNCHRONOUS FUNCTIONS (For Celery Tasks) ---
 
-def generate_content_with_openai(extracted_text: str, trend_snippets: List[Dict], platforms: List[str]) -> Dict:
+def generate_content_with_openai(extracted_text: str, trend_snippets: List[Dict], platforms: List[str], brand_voice: str = "") -> Dict:
     """
     Generate content using a Multi-Agent Architecture (Synchronous wrapper for Celery).
+    Injects Brand Voice settings if provided.
     """
     
     # 1. Prepare Context
@@ -217,6 +233,15 @@ def generate_content_with_openai(extracted_text: str, trend_snippets: List[Dict]
     
     full_input_text = f"CORE CONTENT:\n{extracted_text[:3000]}\n\nMARKET TRENDS:\n{trends_context}"
     
+    # --- PREPARE BRAND VOICE INSTRUCTION ---
+    brand_instruction = ""
+    if brand_voice:
+        brand_instruction = (
+            "\n\n### CRITICAL: BRAND VOICE INSTRUCTIONS ###\n"
+            f"You MUST adhere to the following tone, style, and directives:\n{brand_voice}\n"
+            "Ignore any default generic AI tone. Sound like THIS brand.\n"
+        )
+
     # --- AGENT 1: The Editorial Director (Blog) ---
     def run_blog_agent():
         try:
@@ -233,7 +258,8 @@ def generate_content_with_openai(extracted_text: str, trend_snippets: List[Dict]
                 "CTA: Encouraging next step.\n\n"
                 "Format: HTML (<h3>, <p>, <ul>, <li>, <strong>). Do NOT use <html> or <body> tags. "
                 "Tone: Professional, authoritative, yet accessible."
-                "Return JSON with keys: 'title', 'html_content'."
+                f"{brand_instruction}" # <--- Inject Voice
+                "\n\nReturn JSON with keys: 'title', 'html_content'."
             )
             
             response = client.chat.completions.create(
@@ -265,7 +291,8 @@ def generate_content_with_openai(extracted_text: str, trend_snippets: List[Dict]
                 "5. **CTA (10-15 sec)**: Subscribe/Like/Comment.\n"
                 "6. **OUTRO**: Offer value or teaser.\n\n"
                 "CRITICAL: You MUST include production notes in brackets like [VISUAL: Stock charts], [SOUND: Cash register], [TEXT OVERLAY]. "
-                "Return JSON with keys: 'title', 'script', 'description'."
+                f"{brand_instruction}" # <--- Inject Voice
+                "\n\nReturn JSON with keys: 'title', 'script', 'description'."
             )
             
             response = client.chat.completions.create(
@@ -307,6 +334,7 @@ def generate_content_with_openai(extracted_text: str, trend_snippets: List[Dict]
                 "   - Format: Use emojis and arrows (->) for readability.\n"
                 "   - Final Tweet: Summary + CTA.\n"
                 "   - Return as array of strings."
+                f"{brand_instruction}" # <--- Inject Voice
             )
             
             response = client.chat.completions.create(
@@ -330,19 +358,70 @@ def generate_content_with_openai(extracted_text: str, trend_snippets: List[Dict]
                 'twitter_thread': []
             }
 
+    # --- AGENT 4: The Email Marketing Specialist (Newsletter) ---
+    def run_email_agent():
+        try:
+            system_prompt = (
+                "You are an expert Email Marketing Copywriter. Create a professional, engaging email newsletter "
+                "using proven email marketing best practices.\n\n"
+                "Structure:\n"
+                "1. **SUBJECT LINE**: Compelling, curiosity-driven, 40-60 characters. Promise value.\n"
+                "2. **PREHEADER**: Supporting text that complements subject (40-100 chars).\n"
+                "3. **EMAIL BODY** (HTML Format):\n"
+                "   - Personalized greeting: 'Hi there,' or 'Hey [Name],'\n"
+                "   - Hook paragraph: Start with a relatable problem or question\n"
+                "   - Main content: 3-5 key insights or tips. Use <h2> for sections.\n"
+                "   - Each section should have: Clear headline + 2-3 paragraphs + bullet points if applicable\n"
+                "   - Visual breaks: Use horizontal rules <hr> between sections\n"
+                "   - CTA Button: Include a clear call-to-action in a styled button\n"
+                "   - Footer: Include unsubscribe link and company info placeholder\n"
+                "4. **PLAIN TEXT VERSION**: Text-only version of the email for email clients that don't support HTML\n\n"
+                "Styling Guidelines:\n"
+                "- Use inline CSS styles for email compatibility\n"
+                "- Keep width to 600px max\n"
+                "- Use safe fonts: Arial, Helvetica, sans-serif\n"
+                "- Include responsive meta tags\n"
+                "- Professional color scheme (primary: #4F46E5, text: #1F2937)\n"
+                f"{brand_instruction}"
+                "\n\nReturn JSON with keys: 'subject', 'preheader', 'html_body', 'plain_text'."
+            )
+            
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Create an email newsletter based on:\n\n{full_input_text}\n\nReturn JSON only."}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.75,
+                max_tokens=3500
+            )
+            content = clean_json_response(response.choices[0].message.content)
+            return json.loads(content)
+        except Exception as e:
+            logger.error(f"Email Agent failed: {e}")
+            return {
+                'subject': 'Newsletter Update',
+                'preheader': 'Your latest insights inside',
+                'html_body': '<p>Error generating email content.</p>',
+                'plain_text': 'Error generating email content.'
+            }
+
     # --- EXECUTE PARALLEL AGENTS ---
     logger.info("Launching Multi-Agent Generation Grid...")
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         # Submit all tasks
         future_blog = executor.submit(run_blog_agent)
         future_youtube = executor.submit(run_youtube_agent)
         future_social = executor.submit(run_social_agent)
+        future_email = executor.submit(run_email_agent)
         
         # Gather results
         blog_data = future_blog.result()
         youtube_data = future_youtube.result()
         social_data = future_social.result()
+        email_data = future_email.result()
     
     # --- MERGE RESULTS ---
     
@@ -363,6 +442,7 @@ def generate_content_with_openai(extracted_text: str, trend_snippets: List[Dict]
         'youtube': youtube_data,
         'linkedin': linkedin_data,
         'twitter_thread': twitter_thread,
+        'email_newsletter': email_data,
         'meta': {
             'generated_at': datetime.now(timezone.utc).isoformat(),
             'model': 'gpt-4o (Multi-Agent)',

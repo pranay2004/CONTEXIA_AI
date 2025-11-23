@@ -304,6 +304,198 @@ def transcribe_video(self, job_id: int):
     except Exception as e: return _handle_error(job_id, e)
 
 
+@shared_task(bind=True)
+def generate_ai_images(self, text_content: str, num_images: int = 4, user_id: int = None):
+    """
+    Generate AI images using Nano Banana (Google Imagen) API
+    Creates a collage and framed images from the generated content
+    
+    Args:
+        text_content: Text to generate images from
+        num_images: Number of images to generate (1-4)
+        user_id: User ID for saving processed images
+    
+    Returns:
+        dict: {
+            'status': 'success'|'failed',
+            'collage_url': str,
+            'framed_urls': [str, ...],
+            'error': str (if failed)
+        }
+    """
+    from .nano_banana import generate_collage_images
+    from .image_processor import ImageProcessor
+    from .models import ProcessedImage, MediaJob
+    from apps.ingest.models import UploadedFile
+    from django.contrib.auth import get_user_model
+    import base64
+    from io import BytesIO
+    
+    User = get_user_model()
+    
+    # Create MediaJob for tracking
+    job = MediaJob.objects.create(
+        job_type='ai_image_generation',
+        status='processing',
+        result_data={'text': text_content[:500], 'num_images': num_images, 'input': True}
+    )
+    
+    try:
+        logger.info(f"Starting AI image generation for {num_images} images")
+        
+        # Try Nano Banana first (Primary)
+        result = generate_collage_images(text_content, num_images)
+        provider_used = "Nano Banana"
+        
+        # If Nano Banana fails, try Fal.ai as first fallback
+        if result['status'] == 'failed':
+            logger.warning(f"Nano Banana failed: {result.get('error')}. Trying Fal.ai fallback...")
+            
+            from .fal_ai import generate_collage_images_with_fal
+            result = generate_collage_images_with_fal(text_content, num_images)
+            provider_used = "Fal.ai"
+            
+            # If Fal.ai also fails, try Freepik as second fallback
+            if result['status'] == 'failed':
+                logger.warning(f"Fal.ai failed: {result.get('error')}. Trying Freepik fallback...")
+                
+                from .freepik_ai import generate_collage_images_with_freepik
+                result = generate_collage_images_with_freepik(text_content, num_images)
+                provider_used = "Freepik"
+                
+                # If all providers fail
+                if result['status'] == 'failed':
+                    error_details = {
+                        'nano_banana': 'Authentication failed (401) - Invalid API key',
+                        'fal_ai': 'Exhausted balance (403) - Top up required',
+                        'freepik': result.get('error', 'Unknown error')
+                    }
+                    job.status = 'failed'
+                    job.error_message = (
+                        "All AI image providers failed. Please check your API keys and account balances:\n"
+                        f"1. Nano Banana: {error_details['nano_banana']}\n"
+                        f"2. Fal.ai: {error_details['fal_ai']}\n"
+                        f"3. Freepik: {error_details['freepik']}\n\n"
+                        "Please update your API keys in the .env file or top up your account balances."
+                    )
+                    job.result_data = {'error_details': error_details}
+                    job.save()
+                    
+                    logger.error(f"All providers failed for job {job.id}")
+                    
+                    return {
+                        'status': 'failed',
+                        'error': 'All AI image generation providers are currently unavailable. Please check your API credentials.',
+                        'error_details': error_details
+                    }
+        
+        logger.info(f"Successfully generated images using {provider_used}")
+        
+        # Convert base64 images to file objects
+        image_files = []
+        for idx, img_base64 in enumerate(result['images']):
+            try:
+                # Decode base64 to bytes
+                img_data = base64.b64decode(img_base64)
+                img_file = ContentFile(img_data, name=f'ai_generated_{idx}.png')
+                image_files.append(img_file)
+            except Exception as e:
+                logger.error(f"Failed to decode image {idx}: {e}")
+        
+        if not image_files:
+            job.status = 'failed'
+            job.error_message = 'No valid images generated'
+            job.save()
+            return {'status': 'failed', 'error': 'No valid images generated'}
+        
+        # Create collage and frames using existing processor
+        collage_file, framed_files = ImageProcessor.create_professional_collage_with_frames(image_files)
+        
+        # Save to database
+        user = None
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                pass
+        
+        # Create UploadedFile reference
+        uploaded_file = UploadedFile.objects.create(
+            user=user,
+            original_filename='ai_generated_images',
+            file_type='image',
+            extracted_text=text_content[:500],
+            word_count=0
+        )
+        
+        # Save collage
+        collage = ProcessedImage.objects.create(
+            user=user,
+            uploaded_file=uploaded_file,
+            image_type='collage',
+            image_file=collage_file,
+            processing_params={'image_count': len(image_files), 'ai_generated': True}
+        )
+        
+        logger.info(f"Saved collage image: {collage.id}")
+        
+        # Save framed images
+        framed_urls = []
+        for idx, framed_file in enumerate(framed_files):
+            framed = ProcessedImage.objects.create(
+                user=user,
+                uploaded_file=uploaded_file,
+                image_type='framed',
+                image_file=framed_file,
+                processing_params={
+                    'frame_index': idx,
+                    'frame_style': ['classic', 'modern', 'minimal', 'elegant'][idx % 4],
+                    'ai_generated': True
+                }
+            )
+            framed_urls.append(framed.image_file.url)
+        
+        # Update job status
+        job.status = 'completed'
+        job.completed_at = timezone.now()
+        job.result_data = {
+            'collage_id': collage.id,
+            'collage_url': collage.image_file.url,
+            'framed_count': len(framed_urls),
+            'uploaded_file_id': uploaded_file.id,
+            'provider_used': provider_used  # Track which AI provider generated the images
+        }
+        job.save()
+        
+        logger.info(f"Successfully generated and processed {len(image_files)} AI images")
+        
+        return {
+            'status': 'success',
+            'job_id': job.id,
+            'collage': {
+                'id': collage.id,
+                'url': collage.image_file.url,
+                'width': collage.width,
+                'height': collage.height
+            },
+            'framed_images': [
+                {
+                    'url': url,
+                    'frame_style': ['classic', 'modern', 'minimal', 'elegant'][idx % 4]
+                }
+                for idx, url in enumerate(framed_urls)
+            ],
+            'uploaded_file_id': uploaded_file.id
+        }
+        
+    except Exception as e:
+        logger.error(f"AI image generation failed: {str(e)}")
+        job.status = 'failed'
+        job.error_message = str(e)
+        job.save()
+        return {'status': 'failed', 'error': str(e)}
+
+
 # --- Helpers ---
 
 def _handle_missing_libs(job_id, lib_name):

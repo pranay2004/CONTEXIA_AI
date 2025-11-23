@@ -9,16 +9,17 @@ logger = logging.getLogger(__name__)
 AI_PROVIDER = os.getenv('AI_PROVIDER', 'openai').lower()
 
 
-def generate_content(extracted_text, trend_snippets, platforms):
+def generate_content(extracted_text, trend_snippets, platforms, brand_voice=""):
     """
     Generate content using configured AI provider
     """
     if AI_PROVIDER == 'openai':
         from .openai_wrapper import generate_content_with_openai
-        return generate_content_with_openai(extracted_text, trend_snippets, platforms)
+        return generate_content_with_openai(extracted_text, trend_snippets, platforms, brand_voice)
     else:
         from .gemini_wrapper import generate_content_with_gemini
-        return generate_content_with_gemini(extracted_text, trend_snippets, platforms)
+        # Ensure your gemini_wrapper also accepts this argument if you use it
+        return generate_content_with_gemini(extracted_text, trend_snippets, platforms, brand_voice)
 
 
 def extract_topic_from_text(text):

@@ -16,7 +16,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] translate-x-1/2 translate-y-1/2 pointer-events-none z-0" />
 
       {/* Sidebar Area */}
-      <div className="hidden lg:block w-[280px] shrink-0 relative z-20">
+      <div className="hidden lg:block w-[280px] shrink-0 relative z-10 p-4">
         <Sidebar />
       </div>
 

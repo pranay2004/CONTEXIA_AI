@@ -1,41 +1,385 @@
-# 🚀 CONTEXIA - AI-Powered Content Generation Platform
+# 🚀 CONTEXIA - AI-Powered Multi-Platform Content Generation System
 
 [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
 [![Django](https://img.shields.io/badge/Django-5.0-green)](https://www.djangoproject.com/)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://www.python.org/)
+[![Celery](https://img.shields.io/badge/Celery-5.3-37814A)](https://docs.celeryq.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-## 📖 Overview
-
-**CONTEXIA** is an intelligent content generation platform that transforms your raw content (PDFs, documents, presentations, or text) into platform-ready social media posts. Powered by advanced AI (OpenAI/Gemini), it analyzes your content and automatically generates optimized posts for LinkedIn, Twitter, YouTube, and blogs with real-time generation using Celery background tasks.
-
-## ✨ Features
-
-### 🎯 Core Functionality
-- **📤 Unified Content Upload**: Upload PDFs, DOCX, PPTX, or paste text directly
-- **🤖 AI-Powered Generation**: Uses OpenAI/Gemini with parallel execution for 2x faster generation
-- **🔄 Async Processing**: Background task processing with Celery & Redis
-- **📱 Multi-Platform Output**: Automatically generates content for:
-  - LinkedIn posts with hashtags
-  - Twitter/X threads (multi-tweet support)
-  - YouTube video scripts with descriptions
-  - SEO-optimized blog articles
-- **🖼️ Image Processing**: Auto-edit and optimize photos for each platform
-- **📊 Real-time Polling**: 1-second status updates during generation
-- **🔐 Secure Authentication**: JWT-based auth with NextAuth.js
-- **📈 Analytics Dashboard**: Track performance across all platforms
-
-### 🎨 User Experience
-- Beautiful, modern UI with Tailwind CSS
-- Real-time content generation with progress tracking
-- Copy-to-clipboard functionality
-- Platform-specific content previews
-- Responsive design for all devices
-- Dark mode support
 
 ---
 
-## 📋 Prerequisites
+## 📌 A. Problem Statement
+
+### The Challenge
+Content creators and marketers face several critical challenges:
+
+1. **Time-Consuming Multi-Platform Publishing**: Creating platform-specific content (LinkedIn posts, Twitter threads, YouTube scripts, blog articles) from a single source takes hours of manual adaptation.
+
+2. **Inconsistent Brand Voice**: Maintaining consistent messaging across different platforms while adapting to each platform's unique requirements and audience expectations.
+
+3. **Trend Integration Difficulty**: Manually researching and incorporating trending topics relevant to the content is labor-intensive and often outdated by the time content is published.
+
+4. **Image Optimization Complexity**: Each platform has different image requirements, aspect ratios, and design aesthetics that require specialized tools and expertise.
+
+5. **Scalability Issues**: As content volume grows, manual content adaptation becomes a bottleneck, limiting publishing frequency and reach.
+
+### Target Users
+- **Digital Marketers**: Need to maintain active presence across multiple platforms
+- **Content Creators**: Require efficient content repurposing workflows
+- **Social Media Managers**: Must handle multiple client accounts with consistent quality
+- **Small Businesses**: Lack resources for dedicated platform-specific content creation
+- **Personal Brands**: Want to maximize reach without hiring large teams
+
+---
+
+## 📌 B. Solution Overview
+
+### Our AI-Powered Approach
+
+**CONTEXIA** is an intelligent, end-to-end content generation platform that transforms any input (PDFs, documents, URLs, or text) into platform-optimized social media content using advanced AI agents and RAG (Retrieval-Augmented Generation).
+
+#### Core Innovation: Multi-Agent AI System
+
+```
+Input Content → Document Processing → RAG-Enhanced AI Agents → Platform-Specific Content → Multi-Platform Publishing
+```
+
+**Key Components:**
+
+1. **Intelligent Document Extraction Engine**
+   - Extracts text from PDFs, DOCX, PPTX files
+   - Web scraping with readability algorithms for URL content
+   - Topic detection using AI semantic analysis
+
+2. **RAG-Powered Trend Integration**
+   - Real-time trend scraping from DuckDuckGo
+   - Vector embeddings (pgvector) for semantic similarity matching
+   - Automatic integration of relevant trending topics into generated content
+
+3. **Multi-Agent Content Generation System**
+   - Specialized AI agents for each platform (LinkedIn, Twitter, YouTube, Blog, Email)
+   - Each agent understands platform-specific best practices, character limits, and engagement patterns
+   - Brand voice personalization for consistent messaging
+
+4. **AI Image Generation & Processing**
+   - Multiple provider support (Nano Banana/Google Imagen, Fal.ai, Freepik)
+   - 8 theme-based design systems (minimal, bold, gradient, vintage, neon, etc.)
+   - Automatic image optimization for each platform's requirements
+
+5. **Async Task Processing**
+   - Celery + Redis for non-blocking content generation
+   - Real-time progress tracking with WebSocket-style polling
+   - Handles concurrent requests efficiently
+
+### Expected Impact
+
+- **90% Time Reduction**: Generate 5+ platform-specific posts in minutes vs. hours
+- **Improved Engagement**: Platform-optimized content performs 3-5x better than generic cross-posts
+- **Consistency**: Brand voice maintained across all platforms automatically
+- **Scalability**: Handle 100+ content pieces per day with minimal human oversight
+- **Trend Relevance**: Content automatically incorporates latest trends, increasing discoverability
+
+### Value Proposition
+
+- **For Marketers**: Free up 15-20 hours/week for strategy instead of content adaptation
+- **For Creators**: Expand reach to 5+ platforms without proportional time investment
+- **For Businesses**: Professional multi-platform presence without hiring specialized staff
+- **For Agencies**: Scale client work 5x with same team size
+
+---
+
+## 📌 C. Architecture Diagram
+
+### System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           FRONTEND LAYER (Next.js 14)                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐│
+│  │   Upload UI  │  │  Generation  │  │   Preview    │  │  Publishing ││
+│  │   (Drag &    │→ │   Dashboard  │→ │   Editor     │→ │   Manager   ││
+│  │    Drop)     │  │  (Real-time) │  │ (Platform-   │  │  (Schedule) ││
+│  └──────────────┘  └──────────────┘  └──────────────┘  └─────────────┘│
+└───────────────────────────────────┬─────────────────────────────────────┘
+                                    │ HTTP/REST API
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      BACKEND LAYER (Django 5.0 + DRF)                   │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │                       API Gateway (views.py)                      │  │
+│  │  • File Upload Endpoints    • Content Generation Endpoints       │  │
+│  │  • Task Status Polling      • Social Media Publishing            │  │
+│  └────────────────────────────────┬─────────────────────────────────┘  │
+│                                   │                                     │
+│  ┌────────────────────────────────▼─────────────────────────────────┐  │
+│  │              DOCUMENT PROCESSING MODULE (ingest/)                │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────┐ │  │
+│  │  │   PDF    │  │   DOCX   │  │   PPTX   │  │   Web Scraper    │ │  │
+│  │  │ Extractor│  │ Extractor│  │ Extractor│  │ (BeautifulSoup)  │ │  │
+│  │  └──────────┘  └──────────┘  └──────────┘  └──────────────────┘ │  │
+│  └────────────────────────────────┬─────────────────────────────────┘  │
+│                                   │                                     │
+│  ┌────────────────────────────────▼─────────────────────────────────┐  │
+│  │              AI PROCESSING LAYER (generator/)                    │  │
+│  │                                                                   │  │
+│  │  ┌─────────────────────────────────────────────────────────────┐ │  │
+│  │  │         MULTI-AGENT AI SYSTEM (ai_wrapper.py)              │ │  │
+│  │  │                                                             │ │  │
+│  │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │ │  │
+│  │  │  │  LinkedIn   │  │   Twitter   │  │   YouTube   │       │ │  │
+│  │  │  │    Agent    │  │    Agent    │  │    Agent    │  ...  │ │  │
+│  │  │  └─────────────┘  └─────────────┘  └─────────────┘       │ │  │
+│  │  │         │                 │                 │              │ │  │
+│  │  │         └─────────────────┴─────────────────┘              │ │  │
+│  │  │                          │                                 │ │  │
+│  │  │                ┌─────────▼─────────┐                      │ │  │
+│  │  │                │  OpenAI / Gemini  │                      │ │  │
+│  │  │                │   LLM Backend     │                      │ │  │
+│  │  │                └───────────────────┘                      │ │  │
+│  │  └─────────────────────────────────────────────────────────────┘ │  │
+│  └────────────────────────────────┬─────────────────────────────────┘  │
+│                                   │                                     │
+│  ┌────────────────────────────────▼─────────────────────────────────┐  │
+│  │         RAG SYSTEM (trends/ + vectorstore.py)                    │  │
+│  │                                                                   │  │
+│  │  ┌───────────────┐    ┌──────────────────┐   ┌───────────────┐ │  │
+│  │  │ DuckDuckGo    │───▶│  Embedding Gen   │──▶│  PostgreSQL   │ │  │
+│  │  │ Trend Scraper │    │ (AI Embeddings)  │   │  + pgvector   │ │  │
+│  │  └───────────────┘    └──────────────────┘   └───────────────┘ │  │
+│  │                                │                      │          │  │
+│  │                         ┌──────▼──────────────────────▼────┐    │  │
+│  │                         │  Semantic Similarity Search      │    │  │
+│  │                         │  (Top-K Relevant Trends)         │    │  │
+│  │                         └──────────────────────────────────┘    │  │
+│  └────────────────────────────────┬─────────────────────────────────┘  │
+│                                   │                                     │
+│  ┌────────────────────────────────▼─────────────────────────────────┐  │
+│  │           IMAGE GENERATION & PROCESSING (media/)                 │  │
+│  │                                                                   │  │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │  │
+│  │  │ Nano Banana  │  │   Fal.ai     │  │   Freepik API        │  │  │
+│  │  │ (Google AI)  │→ │  (Fallback)  │→ │   (Fallback 2)       │  │  │
+│  │  └──────────────┘  └──────────────┘  └──────────────────────┘  │  │
+│  │          │                                                       │  │
+│  │          ▼                                                       │  │
+│  │  ┌────────────────────────────────────────────────────────────┐ │  │
+│  │  │  AI Design System (8 Themes)                              │ │  │
+│  │  │  • Minimal  • Bold  • Gradient  • Vintage                 │ │  │
+│  │  │  • Neon  • Corporate  • Organic  • Tech                   │ │  │
+│  │  └────────────────────────────────────────────────────────────┘ │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    TASK QUEUE LAYER (Celery + Redis)                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐│
+│  │   Content    │  │    Image     │  │   Trend      │  │   Social    ││
+│  │  Generation  │  │  Generation  │  │   Scraping   │  │  Publishing ││
+│  │    Tasks     │  │    Tasks     │  │    Tasks     │  │    Tasks    ││
+│  └──────────────┘  └──────────────┘  └──────────────┘  └─────────────┘│
+└───────────────────────────────────┬─────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      DATA PERSISTENCE LAYER                             │
+│  ┌────────────────────────────┐  ┌──────────────────────────────────┐  │
+│  │   PostgreSQL Database      │  │      Redis Cache & Queue         │  │
+│  │  • User Data               │  │  • Task Queue (Celery)           │  │
+│  │  • Content Records         │  │  • Session Management            │  │
+│  │  • Trend Vectors (pgvector)│  │  • Real-time State               │  │
+│  │  • Social Accounts         │  │  • Rate Limiting                 │  │
+│  └────────────────────────────┘  └──────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────┘
+
+                                    ┌─────────────────────┐
+                                    │  External Services  │
+                                    │  • OpenAI API       │
+                                    │  • Google Gemini    │
+                                    │  • DuckDuckGo       │
+                                    │  • Image APIs       │
+                                    └─────────────────────┘
+```
+
+### Agent Workflow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       CONTENT GENERATION WORKFLOW                       │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    User Input (PDF/DOCX/Text/URL)
+              │
+              ▼
+    ┌─────────────────────┐
+    │  Document Processor │
+    │  • Extract Text     │
+    │  • Detect Topic     │
+    │  • Clean Content    │
+    └──────────┬──────────┘
+               │
+               ▼
+    ┌─────────────────────┐
+    │   Topic Analysis    │
+    │  (AI Embeddings)    │
+    └──────────┬──────────┘
+               │
+               ├──────────────────────────────┐
+               │                              │
+               ▼                              ▼
+    ┌─────────────────────┐      ┌─────────────────────┐
+    │  Trend Retrieval    │      │   Brand Voice       │
+    │  (RAG System)       │      │   Retrieval         │
+    │  • Vector Search    │      │   (User Profile)    │
+    │  • Top-K Trends     │      └──────────┬──────────┘
+    └──────────┬──────────┘                 │
+               │                            │
+               └────────────┬───────────────┘
+                            │
+                            ▼
+              ┌─────────────────────────────┐
+              │   Content Context Builder   │
+              │   • Input Text              │
+              │   • Relevant Trends         │
+              │   • Brand Voice Rules       │
+              └─────────────┬───────────────┘
+                            │
+                            ▼
+         ┌──────────────────────────────────────────┐
+         │      MULTI-AGENT AI ORCHESTRATION        │
+         └──────────────────────────────────────────┘
+                            │
+         ┌──────────────────┼──────────────────┐
+         │                  │                  │
+         ▼                  ▼                  ▼
+    ┌─────────┐        ┌─────────┐      ┌─────────┐
+    │LinkedIn │        │ Twitter │      │ YouTube │  ...
+    │  Agent  │        │  Agent  │      │  Agent  │
+    └────┬────┘        └────┬────┘      └────┬────┘
+         │                  │                 │
+         │ Prompts:         │ Prompts:        │ Prompts:
+         │ • Tone: Pro      │ • Tone: Casual  │ • Tone: Engaging
+         │ • Length: 1300   │ • Length: 280   │ • Length: Script
+         │ • Hashtags: Yes  │ • Thread: Yes   │ • Timestamps: Yes
+         │                  │                 │
+         └─────────┬────────┴─────────┬───────┘
+                   │                  │
+                   ▼                  ▼
+         ┌──────────────────┐  ┌──────────────────┐
+         │   OpenAI GPT-4   │  │  Google Gemini   │
+         │   (Primary LLM)  │  │  (Fallback LLM)  │
+         └─────────┬────────┘  └─────────┬────────┘
+                   │                     │
+                   └──────────┬──────────┘
+                              │
+                              ▼
+                  ┌───────────────────────┐
+                  │  Generated Content    │
+                  │  • LinkedIn Post      │
+                  │  • Twitter Thread     │
+                  │  • YouTube Script     │
+                  │  • Blog Article       │
+                  │  • Email Newsletter   │
+                  └───────────┬───────────┘
+                              │
+                              ▼
+                  ┌───────────────────────┐
+                  │  Image Generation     │
+                  │  (If No Manual Images)│
+                  │  • AI Image APIs      │
+                  │  • Theme Selection    │
+                  │  • Platform Resize    │
+                  └───────────┬───────────┘
+                              │
+                              ▼
+                  ┌───────────────────────┐
+                  │   Database Storage    │
+                  │   • Content JSON      │
+                  │   • Metadata          │
+                  │   • User Association  │
+                  └───────────┬───────────┘
+                              │
+                              ▼
+                  ┌───────────────────────┐
+                  │   Frontend Display    │
+                  │   • Platform Tabs     │
+                  │   • Copy/Edit Tools   │
+                  │   • Publishing Queue  │
+                  └───────────────────────┘
+```
+
+---
+
+## 📌 D. Tech Stack
+
+### Frontend
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Next.js** | 14.x | React framework with App Router |
+| **React** | 18.x | UI component library |
+| **TypeScript** | 5.x | Type-safe JavaScript |
+| **Tailwind CSS** | 3.x | Utility-first CSS framework |
+| **Shadcn/ui** | Latest | Accessible component library |
+| **Framer Motion** | 10.x | Animation library |
+| **React Dropzone** | 14.x | File upload interface |
+| **Axios** | 1.x | HTTP client for API calls |
+| **Sonner** | Latest | Toast notifications |
+| **date-fns** | 2.x | Date manipulation |
+
+### Backend
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Django** | 5.0+ | Web framework |
+| **Django REST Framework** | 3.14+ | API development |
+| **Python** | 3.10+ | Programming language |
+| **PostgreSQL** | 15+ | Primary database |
+| **pgvector** | 0.2+ | Vector similarity search |
+| **Redis** | 5.0+ | Caching & message broker |
+| **Celery** | 5.3+ | Async task queue |
+| **django-celery-beat** | 2.5+ | Periodic task scheduler |
+
+### AI & Machine Learning
+| Technology | Purpose |
+|------------|---------|
+| **OpenAI API** | Primary LLM (GPT-4/GPT-3.5) |
+| **Google Gemini API** | Fallback LLM + Embeddings |
+| **Nano Banana (Google Imagen)** | AI image generation (primary) |
+| **Fal.ai** | AI image generation (fallback) |
+| **Freepik API** | AI image generation (fallback 2) |
+| **Custom Vector Store** | Pure Python similarity search |
+
+### Document Processing
+| Library | Purpose |
+|---------|---------|
+| **pypdf** | PDF text extraction |
+| **python-docx** | Word document processing |
+| **BeautifulSoup4** | Web scraping |
+| **readability-lxml** | Article content extraction |
+| **Pillow (PIL)** | Image processing |
+
+### Integration & Tools
+| Technology | Purpose |
+|------------|---------|
+| **DuckDuckGo Search API** | Trend discovery |
+| **JWT (SimpleJWT)** | Authentication tokens |
+| **django-cors-headers** | Cross-origin resource sharing |
+| **Gunicorn** | Production WSGI server |
+| **Whitenoise** | Static file serving |
+
+### Development Tools
+| Tool | Purpose |
+|------|---------|
+| **Git** | Version control |
+| **VSCode** | Code editor |
+| **Postman** | API testing |
+| **pgAdmin** | Database management |
+
+---
+
+## 📌 E. How to Run Your Project
+
+### Prerequisites
 
 Before you begin, ensure you have installed:
 
@@ -43,11 +387,15 @@ Before you begin, ensure you have installed:
 |----------|---------|----------|
 | **Node.js** | v18.0.0+ | [nodejs.org](https://nodejs.org/) |
 | **Python** | v3.10+ | [python.org](https://www.python.org/downloads/) |
+| **PostgreSQL** | v15+ | [postgresql.org](https://www.postgresql.org/download/) |
 | **Redis** | Latest | [redis.io](https://redis.io/) or WSL |
 | **Git** | Latest | [git-scm.com](https://git-scm.com/) |
 
-### Additional Requirements
-- **OpenAI API Key** or **Google Gemini API Key** (for AI generation)
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/pranay2004/CONTEXIA_AI.git
+cd CONTEXIA_AI
 - **Redis Server** (for Celery task queue)
 
 ---
@@ -767,3 +1115,212 @@ For issues, questions, or suggestions:
 ---
 
 **Made with ❤️ by the CONTEXIA Team**
+`
+
+### Step 2: Backend Setup (Django)
+
+#### 2.1 Navigate to Backend Directory
+```bash
+cd backend
+```
+
+#### 2.2 Create Virtual Environment
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# macOS/Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+
+#### 2.3 Install Python Dependencies
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+#### 2.4 Set Up PostgreSQL Database
+
+**Create Database:**
+```sql
+-- Open PostgreSQL command line (psql)
+CREATE DATABASE contexia_db;
+CREATE USER contexia_user WITH PASSWORD 'your_secure_password';
+ALTER ROLE contexia_user SET client_encoding TO 'utf8';
+ALTER ROLE contexia_user SET default_transaction_isolation TO 'read committed';
+ALTER ROLE contexia_user SET timezone TO 'UTC';
+GRANT ALL PRIVILEGES ON DATABASE contexia_db TO contexia_user;
+
+-- Enable pgvector extension
+\c contexia_db
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+#### 2.5 Configure Environment Variables
+
+Create .env file in ackend/ directory:
+
+```env
+# Django Settings
+SECRET_KEY=your-super-secret-django-key-change-this-in-production
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Database Configuration
+DB_NAME=contexia_db
+DB_USER=contexia_user
+DB_PASSWORD=your_secure_password
+DB_HOST=localhost
+DB_PORT=5432
+
+# AI Provider Configuration (Choose one or both)
+# Option 1: OpenAI (Primary)
+OPENAI_API_KEY=sk-your-openai-api-key-here
+AI_PROVIDER=openai  # or 'gemini'
+
+# Option 2: Google Gemini (Alternative/Fallback)
+GOOGLE_API_KEY=your-google-gemini-api-key-here
+
+# AI Image Generation APIs (Optional)
+NANO_BANANA_API_KEY=your-nano-banana-api-key
+FAL_API_KEY=your-fal-ai-api-key
+FREEPIK_API_KEY=your-freepik-api-key
+
+# Redis Configuration
+REDIS_URL=redis://localhost:6379/0
+
+# Celery Configuration
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=django-db
+
+# CORS Settings
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+#### 2.6 Run Database Migrations
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+#### 2.7 Create Superuser
+```bash
+python manage.py createsuperuser
+```
+
+#### 2.8 Start Django Development Server
+```bash
+python manage.py runserver
+```
+
+---
+
+### Step 3: Start Redis & Celery
+
+#### 3.1 Start Redis Server
+```bash
+# Windows WSL
+wsl redis-server
+
+# macOS
+brew services start redis
+
+# Linux
+sudo service redis-server start
+```
+
+#### 3.2 Start Celery Worker
+```bash
+# Windows
+celery -A project worker --loglevel=info --pool=solo
+
+# macOS/Linux
+celery -A project worker --loglevel=info
+```
+
+---
+
+### Step 4: Frontend Setup (Next.js)
+
+#### 4.1 Navigate to Frontend
+```bash
+cd frontend
+```
+
+#### 4.2 Install Dependencies
+```bash
+npm install
+```
+
+#### 4.3 Configure Environment
+
+Create .env.local:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-nextauth-secret
+```
+
+#### 4.4 Start Next.js
+```bash
+npm run dev
+```
+
+---
+
+##  F. API Keys / Usage Notes
+
+### Required API Keys
+
+#### 1. AI/LLM Provider (Choose One)
+
+**OpenAI**
+- Get Key: platform.openai.com/api-keys
+- Models: GPT-4, GPT-3.5-turbo
+- Pricing: ~.01-0.03 per 1K tokens
+- Variable: OPENAI_API_KEY=sk-...
+
+**Google Gemini** 
+- Get Key: makersuite.google.com/app/apikey
+- Models: Gemini-1.5-flash, Gemini-1.5-pro
+- Pricing: Free tier available
+- Variable: GOOGLE_API_KEY=AIza...
+
+#### 2. Database
+
+**PostgreSQL with pgvector**
+- Self-hosted, no API key
+- Extension required: pgvector
+
+---
+
+##  G. Sample Inputs & Outputs
+
+See comprehensive examples in the full documentation above.
+
+---
+
+##  Additional Resources
+
+- **API Documentation**: ackend/API_DOCS.md
+- **AI Image Setup**: ackend/AI_IMAGE_SETUP.md
+- **Contributing**: CONTRIBUTING.md
+
+---
+
+##  License
+
+MIT License - see LICENSE file
+
+---
+
+##  Support
+
+- **Issues**: GitHub Issues
+- **Email**: support@contexia.ai
+
+---
+
+** Star us on GitHub if you find this useful!**

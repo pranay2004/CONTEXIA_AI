@@ -13,31 +13,26 @@ class RegisterView(generics.CreateAPIView):
 @api_view(['GET', 'PUT'])
 @permission_classes([permissions.IsAuthenticated])
 def manage_profile(request):
-    """
-    Retrieve or update the authenticated user's profile.
-    """
     user = request.user
+    
+    # FIX: Create profile if it doesn't exist yet
+    profile, created = UserProfile.objects.get_or_create(user=user)
     
     if request.method == 'GET':
         serializer = UserSerializer(user)
         return Response(serializer.data)
     
     elif request.method == 'PUT':
-        # Update user fields (like email)
         user_data = request.data.get('user', {})
         if 'email' in user_data:
             user.email = user_data['email']
             user.save()
             
-        # Ensure profile exists (get_or_create prevents duplicates)
-        profile, created = UserProfile.objects.get_or_create(user=user)
-
         profile_data = request.data.get('profile', {})
         profile_serializer = UserProfileSerializer(profile, data=profile_data, partial=True)
         
         if profile_serializer.is_valid():
             profile_serializer.save()
-            # Return the full updated user object
             return Response(UserSerializer(user).data)
         
         return Response(profile_serializer.errors, status=status.HTTP_400_BAD_REQUEST)

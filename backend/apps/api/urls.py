@@ -11,6 +11,9 @@ from .views import (
     user_analytics,
     upload_voice_sample,
     recent_activity, # ✅ Used in dashboard
+    process_images, # ✅ New image processing endpoint
+    generate_ai_images, # ✅ AI image generation
+    check_image_task_status, # ✅ Image task status checker
     TrendArticleViewSet
 )
 
@@ -46,6 +49,9 @@ urlpatterns = [
     path('analytics/', user_analytics, name='user_analytics'),
     path('stats/recent-activity/', recent_activity, name='recent_activity'), # ✅ Dashboard feed
     path('analyze-my-voice-file/', upload_voice_sample, name='upload_voice_sample'),
+    path('process-images/', process_images, name='process_images'), # ✅ New multi-image processor
+    path('generate-ai-images/', generate_ai_images, name='generate_ai_images'), # ✅ AI image generation
+    path('image-task/<str:task_id>/', check_image_task_status, name='check_image_task_status'), # ✅ Image task status
     
     # Photo Processing
     path('photos/process/', process_photo, name='process_photo'),

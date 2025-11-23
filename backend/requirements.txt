@@ -1,35 +1,125 @@
-# Core Framework
-Django>=5.0.0
-djangorestframework>=3.14.0
-djangorestframework-simplejwt>=5.3.1
-django-cors-headers>=4.3.1
+# ============================================
+# CONTEXIA - AI Content Generation Platform
+# Python Requirements File
+# Python Version: 3.10+
+# ============================================
+
+# Core Web Framework
+Django>=5.0.0,<5.1.0
+djangorestframework>=3.14.0,<3.15.0
+djangorestframework-simplejwt>=5.3.1,<6.0.0
+django-cors-headers>=4.3.1,<5.0.0
 python-dotenv>=1.0.0
 validators>=0.22.0
 
-# Database & Queue
-psycopg2-binary>=2.9.9
-redis>=5.0.1
-django-celery-beat>=2.5.0
-django-celery-results>=2.5.1
-celery>=5.3.4
+# Database & ORM
+psycopg2-binary>=2.9.9  # PostgreSQL adapter
+pgvector>=0.2.0  # Vector similarity search extension
+django-db-connection-pool>=1.2.4  # Connection pooling for better performance
 
-# Document Extraction (Pure Python)
-pypdf>=3.17.0
-python-docx>=1.1.0
+# Task Queue & Background Processing
+redis>=5.0.1  # Message broker & caching
+celery>=5.3.4,<6.0.0  # Async task queue
+django-celery-beat>=2.5.0  # Periodic task scheduler
+django-celery-results>=2.5.1  # Store task results in Django DB
+kombu>=5.3.0  # Messaging library for Celery
 
-# Web Scraping
-beautifulsoup4>=4.12.2
-requests>=2.31.0
-readability-lxml>=0.8.1
+# AI & Machine Learning
+openai>=1.0.0  # OpenAI GPT-4/GPT-3.5 API
+google-generativeai>=0.3.2  # Google Gemini API
+tenacity>=8.2.0  # Retry logic for API calls
+tiktoken>=0.5.0  # Token counting for OpenAI models
 
-# AI & LLM
-google-generativeai>=0.3.2
-tenacity>=8.2.0
-pgvector>=0.2.0
+# Document Processing & Extraction
+pypdf>=3.17.0  # PDF text extraction (pure Python)
+python-docx>=1.1.0  # Microsoft Word document processing
+python-pptx>=0.6.21  # PowerPoint presentation processing
+odfpy>=1.4.1  # OpenDocument format support
 
-# Utilities
-gunicorn>=21.2.0
-whitenoise>=6.6.0
+# Web Scraping & Content Extraction
+beautifulsoup4>=4.12.2  # HTML/XML parsing
+requests>=2.31.0  # HTTP library (also for API calls)
+readability-lxml>=0.8.1  # Article content extraction
+lxml>=4.9.0  # XML/HTML processing
+html5lib>=1.1  # HTML parser
 
-# NOTE: Media processing libraries (rembg, whisper) removed
-# to ensure compatibility with Python 3.14 on Windows.
+# Search & Discovery
+duckduckgo-search>=3.9.0  # Trend discovery and web search
+
+# Image Processing & Manipulation
+Pillow>=10.0.0  # Python Imaging Library
+requests-toolbelt>=1.0.0  # Multipart file uploads
+
+# Security & Authentication
+cryptography>=41.0.0  # Encryption utilities
+PyJWT>=2.8.0  # JSON Web Token implementation
+argon2-cffi>=23.1.0  # Password hashing (recommended by Django)
+
+# Date & Time Utilities
+python-dateutil>=2.8.2  # Date parsing and manipulation
+pytz>=2023.3  # Timezone support
+
+# Data Validation & Serialization
+pydantic>=2.5.0  # Data validation using Python type hints
+marshmallow>=3.20.0  # Object serialization/deserialization
+
+# HTTP & API Utilities
+httpx>=0.25.0  # Modern HTTP client (async support)
+urllib3>=2.0.0  # HTTP client library
+certifi>=2023.7.22  # SSL certificate validation
+
+# Monitoring & Logging
+psutil>=5.9.0  # System and process utilities
+python-json-logger>=2.0.0  # JSON formatted logging
+
+# Production Server
+gunicorn>=21.2.0  # WSGI HTTP Server for production
+whitenoise>=6.6.0  # Static file serving for production
+gevent>=23.9.0  # Coroutine-based Python networking library
+
+# Development & Debugging (Optional - comment out in production)
+django-debug-toolbar>=4.2.0  # Debug toolbar for development
+ipython>=8.17.0  # Enhanced Python shell
+django-extensions>=3.2.3  # Custom management commands
+
+# Testing (Optional - only for development)
+pytest>=7.4.0  # Testing framework
+pytest-django>=4.5.0  # Django integration for pytest
+pytest-cov>=4.1.0  # Coverage plugin for pytest
+factory-boy>=3.3.0  # Test fixtures
+faker>=20.0.0  # Fake data generation
+
+# Code Quality (Optional - only for development)
+black>=23.11.0  # Code formatter
+flake8>=6.1.0  # Linting
+isort>=5.12.0  # Import sorting
+pylint>=3.0.0  # Code analysis
+
+# Additional Utilities
+chardet>=5.2.0  # Character encoding detection
+idna>=3.4  # Internationalized Domain Names in Applications
+six>=1.16.0  # Python 2 and 3 compatibility utilities
+
+# ============================================
+# NOTES:
+# ============================================
+# 1. Install with: pip install -r requirements.txt
+# 2. For production, comment out development/testing packages
+# 3. Update regularly: pip list --outdated
+# 4. Freeze exact versions: pip freeze > requirements-lock.txt
+# 5. Virtual environment recommended: python -m venv venv
+#
+# REMOVED DEPENDENCIES (Compatibility Issues):
+# - rembg: Requires onnxruntime which has C++ dependencies
+# - whisper: Audio transcription (not needed for current features)
+# - python-pptx: Replaced with XML-based extraction
+#
+# OPTIONAL API INTEGRATIONS:
+# - Nano Banana (Google Imagen): Image generation
+# - Fal.ai: Image generation fallback
+# - Freepik API: Image generation fallback 2
+# - LinkedIn/Twitter OAuth: Social media publishing
+#
+# ENVIRONMENT VARIABLES REQUIRED:
+# See .env.example or README.md for full configuration
+# ============================================

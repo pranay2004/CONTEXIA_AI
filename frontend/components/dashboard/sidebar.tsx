@@ -8,16 +8,19 @@ import {
   Sparkles, 
   BarChart3, 
   LogOut,
-  Zap,
-  User
+  CalendarClock,
+  Settings
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { signOut, useSession } from 'next-auth/react' // Added useSession
+import { signOut, useSession } from 'next-auth/react'
+import { Logo } from '@/components/logo'
 
 const navigation = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Content Lab', href: '/dashboard/content', icon: Sparkles },
+  { name: 'Social & Schedule', href: '/dashboard/social', icon: CalendarClock },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
 export function Sidebar() {
@@ -25,16 +28,17 @@ export function Sidebar() {
   const { data: session } = useSession()
 
   return (
+    // FIX: Removed mx-4 my-4 margins that were causing overflow. Parent container handles spacing.
     <motion.aside 
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      // CHANGED: top-24 -> top-4
-      className="fixed left-4 top-4 bottom-4 w-64 flex flex-col glass-panel rounded-2xl z-40 overflow-hidden border border-white/10 bg-[#0F172A]/60 backdrop-blur-xl"
+      className="flex flex-col h-full w-full glass-panel rounded-2xl overflow-hidden border border-white/10 bg-[#0F172A]/60 backdrop-blur-xl"
     >
-      {/* Branding & Status */}
+      {/* Branding */}
       <div className="p-6 flex items-center gap-3 border-b border-white/5">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-          <Zap className="w-4 h-4 text-white fill-white" />
+        <div className="relative">
+          <div className="absolute inset-0 bg-indigo-500/20 blur-lg rounded-full" />
+          <Logo className="w-10 h-10 relative z-10" />
         </div>
         <div>
           <span className="font-bold text-lg tracking-tight text-white block leading-none">CONTEXIA</span>
@@ -43,7 +47,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 px-3 py-6 space-y-1">
+      <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
         {navigation.map((item) => {
           const isActive = pathname === item.href
           
@@ -68,7 +72,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User Profile & Actions (New Section) */}
+      {/* User Profile */}
       <div className="p-3 mt-auto border-t border-white/5 bg-black/20">
         <div className="flex items-center gap-3 px-3 py-3 mb-2 rounded-xl bg-white/5 border border-white/5">
           <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold text-white">
