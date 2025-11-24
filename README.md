@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🚀 CONTEXIA - AI-Powered Multi-Platform Content Generation System
 
 [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
@@ -1324,3 +1325,6 @@ MIT License - see LICENSE file
 ---
 
 ** Star us on GitHub if you find this useful!**
+=======
+# Moon-phoenix
+>>>>>>> 42eb12482ff1ff6a9fbc1a4f6ac1f312c1de2784
