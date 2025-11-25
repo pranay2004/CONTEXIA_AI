@@ -286,9 +286,9 @@ export default function HomePage() {
             <div className="w-12 h-12 rounded-lg bg-pink-500/20 flex items-center justify-center mb-6">
               <Cpu className="w-6 h-6 text-pink-400" />
             </div>
-            <h3 className="text-2xl font-bold mb-2">Gemini Neural Core</h3>
+            <h3 className="text-2xl font-bold mb-2">GPT 4o Neural Core</h3>
             <p className="text-gray-400 text-sm">
-              Uses Google's Gemini 1.5 Flash to synthesize context + trends into gold.
+              Uses OpenAI's gpt-4o to synthesize context + trends into gold.
             </p>
             <div className="mt-8 flex justify-center">
               <div className="w-32 h-32 relative">

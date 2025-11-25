@@ -34,8 +34,28 @@ export default function SocialManagePage() {
         socialApi.getAccounts().catch(() => []), // Return empty array on error
         socialApi.getScheduledPosts().catch(() => []) // Return empty array on error
       ])
-      setAccounts(accData)
-      setQueue(queueData)
+
+      // --- FIX: Robustly handle API response formats (Array vs Object) ---
+      let safeAccounts: SocialAccount[] = []
+      if (Array.isArray(accData)) {
+        safeAccounts = accData
+      } else if (accData && typeof accData === 'object') {
+        // Handle { data: [...] } or { results: [...] } patterns
+        if (Array.isArray((accData as any).data)) safeAccounts = (accData as any).data
+        else if (Array.isArray((accData as any).results)) safeAccounts = (accData as any).results
+      }
+      setAccounts(safeAccounts)
+
+      // --- FIX: Robustly handle Queue response formats ---
+      let safeQueue: ScheduledPost[] = []
+      if (Array.isArray(queueData)) {
+        safeQueue = queueData
+      } else if (queueData && typeof queueData === 'object') {
+        if (Array.isArray((queueData as any).data)) safeQueue = (queueData as any).data
+        else if (Array.isArray((queueData as any).results)) safeQueue = (queueData as any).results
+      }
+      setQueue(safeQueue)
+
     } catch (error) {
       console.error("Failed to load social data:", error)
       // Don't show error toast, just set empty data
@@ -117,7 +137,11 @@ export default function SocialManagePage() {
           
           <div className="space-y-4">
             {['linkedin', 'twitter'].map(platform => {
-              const account = accounts.find(a => a.platform === platform && a.is_active)
+              // Now accounts is guaranteed to be an array
+              const account = Array.isArray(accounts) 
+                ? accounts.find(a => a.platform === platform && a.is_active)
+                : null
+                
               const PlatformIcon = platform === 'linkedin' ? Linkedin : Twitter
               
               return (

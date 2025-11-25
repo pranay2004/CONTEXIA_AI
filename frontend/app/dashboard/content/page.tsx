@@ -389,10 +389,18 @@ export default function ContentLab() {
             // LinkedIn Mapping
             if (content.linkedin) {
               const text = content.linkedin.post_text || content.linkedin.text || content.linkedin.content || ''
+              
+              // SAFEGUARD: Ensure hashtags is always an array
+              let tags = content.linkedin.hashtags || []
+              if (typeof tags === 'string') {
+                // Split string hashtags if strictly necessary (e.g. "#tag1 #tag2")
+                tags = tags.split(' ').filter((t: string) => t.startsWith('#'))
+              }
+
               transformedContent.push({
                 platform: 'linkedin',
                 content: text,
-                hashtags: content.linkedin.hashtags || [],
+                hashtags: Array.isArray(tags) ? tags : [], 
                 ...content.linkedin
               })
             }
@@ -621,7 +629,8 @@ export default function ContentLab() {
         <p className="whitespace-pre-wrap text-sm leading-relaxed font-sans">
           {item.content}
         </p>
-        {item.hashtags && item.hashtags.length > 0 && (
+        {/* Fix: Check for Array before mapping to prevent runtime error */}
+        {Array.isArray(item.hashtags) && item.hashtags.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {item.hashtags.map(tag => (
               <span key={tag} className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:underline cursor-pointer">
