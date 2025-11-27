@@ -196,7 +196,7 @@ export default function HomePage() {
               size="lg"
               className="h-14 px-8 rounded-full border-white/10 hover:bg-white/5 text-lg"
             >
-             <a href="https://youtu.be/4ZHgVfcN5ZA"> View Demo </a>
+              View Demo
             </Button>
           </motion.div>
         </motion.div>
