@@ -8,7 +8,7 @@
 [![Redis](https://img.shields.io/badge/Redis-Cache%2FQueue-red)](https://redis.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-CONTEXIA is an **AI-powered, multi-platform content generation system** that transforms a single source (PDFs, documents, URLs, or raw text) into **platform-optimized content** for LinkedIn, X/Twitter, YouTube, blogs, and more. It combines **RAG (Retrieval-Augmented Generation)**, **multi-agent AI**, and **async processing** to deliver fast, on-brand, and trend-aware content at scale, backed by **Supabase (PostgreSQL + pgvector)** for storage and semantic search.
+CONTEXIA is an **AI-powered, multi-platform content generation system** that transforms a single source (PDFs, documents, URLs, or raw text) into **platform-optimized content** for LinkedIn, X/Twitter, YouTube scripts, blogs, email. It combines **RAG (Retrieval-Augmented Generation)**, **multi-agent AI**, and **async processing** to deliver fast, on-brand, and trend-aware content at scale, backed by **Supabase (PostgreSQL + pgvector)** for storage and semantic search.
 
 ---
 
